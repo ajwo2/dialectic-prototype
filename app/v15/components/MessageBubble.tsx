@@ -40,7 +40,7 @@ export function MessageBubble({
 
   const senderName = displayNameFor
     ? displayNameFor(message.authorId)
-    : message.authorId === "suz" ? "Suz" : "A.J.";
+    : message.authorId === "suz" ? "Player 2" : "Player 1";
 
   const handleTouchStart = (e: React.TouchEvent) => {
     touchStartX.current = e.touches[0].clientX;
@@ -73,7 +73,7 @@ export function MessageBubble({
   const replyToName = replyToMessage
     ? displayNameFor
       ? displayNameFor(replyToMessage.authorId)
-      : replyToMessage.authorId === "suz" ? "Suz" : "A.J."
+      : replyToMessage.authorId === "suz" ? "Player 2" : "Player 1"
     : "";
 
   return (
