@@ -44,3 +44,39 @@ export interface MessageNode extends Message {
   children: MessageNode[];
   depth: number;
 }
+
+// ── Interaction Model Types (V9-V14) ──
+
+export type DiscourseReactionType =
+  | "tension"
+  | "agreement"
+  | "evidence"
+  | "reframe"
+  | "key_point"
+  | "tangent";
+
+export interface DiscourseReaction {
+  type: DiscourseReactionType;
+  count: number;
+}
+
+export interface Claim {
+  id: string;
+  messageId: string;
+  text: string;
+  contested: boolean;
+}
+
+export interface ClaimLink {
+  id: string;
+  fromClaimId: string;
+  toClaimId: string;
+  type: "supports" | "contradicts" | "refines";
+}
+
+export interface GhostBranch {
+  id: string;
+  afterMessageId: string;
+  suggestion: string;
+  category: "assumption" | "undefined_term" | "blind_spot" | "logical_gap";
+}
