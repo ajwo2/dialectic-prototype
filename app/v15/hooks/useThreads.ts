@@ -27,7 +27,7 @@ export function useThreadNav(threads: BranchThread[]) {
 
   const getThreadsForMessage = useCallback(
     (messageId: string, parentThreadId: string | null) =>
-      threads.filter((t) => t.parentMessageId === messageId && t.parentThreadId === parentThreadId),
+      threads.filter((t) => t.parentMessageId === messageId && t.parentThreadId === parentThreadId && !t.closed),
     [threads],
   );
 

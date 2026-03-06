@@ -36,6 +36,7 @@ function dbThreadToBranch(t: DbThread, threadMessages: ChatMessage[]): BranchThr
     messages: threadMessages,
     isCollapsed: true,
     sourceType: (t.source_type || "highlight") as "highlight" | "ghost",
+    closed: !!t.closed,
     createdAt: t.created_at,
   };
 }
@@ -59,13 +60,14 @@ export function useChat(userId: UserId | null) {
   const [replyTo, setReplyTo] = useState<ChatMessage | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [initialized, setInitialized] = useState(false);
+  const [typingUsers, setTypingUsers] = useState<string[]>([]);
 
   const isMainLoading = loadingContext === "main";
 
   // Ref to track latest counts for smart polling
   const stateRef = useRef({ messageCount: 0, threadCount: 0, ghostCount: 0 });
 
-  const hydrateState = useCallback((data: { messages: DbMessage[]; threads: DbThread[]; ghosts: DbGhost[] }) => {
+  const hydrateState = useCallback((data: { messages: DbMessage[]; threads: DbThread[]; ghosts: DbGhost[]; typing?: string[] }) => {
     const allDbMessages = data.messages.map(dbMessageToChat);
 
     // Split: main messages (no thread_id) and thread messages
@@ -101,6 +103,11 @@ export function useChat(userId: UserId | null) {
       setChatMessages(mainMessages);
       setThreads(hydratedThreads);
       setGhosts(hydratedGhosts);
+    }
+
+    // Always update typing (changes frequently, not count-gated)
+    if (data.typing) {
+      setTypingUsers(data.typing);
     }
   }, []);
 
@@ -253,6 +260,7 @@ export function useChat(userId: UserId | null) {
         messages: [],
         isCollapsed: true,
         sourceType,
+        closed: false,
         createdAt: new Date().toISOString(),
       };
 
@@ -308,6 +316,29 @@ export function useChat(userId: UserId | null) {
     [],
   );
 
+  const toggleThreadClosed = useCallback(
+    async (threadId: string, closed: boolean) => {
+      // Optimistic update
+      setThreads((prev) =>
+        prev.map((t) => (t.id === threadId ? { ...t, closed } : t)),
+      );
+
+      try {
+        await fetch(`/api/threads/${threadId}/close`, {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ closed }),
+        });
+      } catch {
+        // Revert on failure
+        setThreads((prev) =>
+          prev.map((t) => (t.id === threadId ? { ...t, closed: !closed } : t)),
+        );
+      }
+    },
+    [],
+  );
+
   const fetchGhosts = useCallback(
     async (msgs: ChatMessage[]) => {
       try {
@@ -358,6 +389,27 @@ export function useChat(userId: UserId | null) {
     [ghosts],
   );
 
+  // Debounced typing ping (at most once per second)
+  const lastTypingPing = useRef(0);
+  const sendTypingPing = useCallback(() => {
+    if (!userId) return;
+    const now = Date.now();
+    if (now - lastTypingPing.current < 1000) return;
+    lastTypingPing.current = now;
+    fetch("/api/typing", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ userId }),
+    }).catch(() => {}); // fire-and-forget
+  }, [userId]);
+
+  // Fire typing ping when inputValue changes (user is typing)
+  useEffect(() => {
+    if (inputValue.length > 0) {
+      sendTypingPing();
+    }
+  }, [inputValue, sendTypingPing]);
+
   const activeGhostCount = ghosts.length;
 
   return {
@@ -382,8 +434,10 @@ export function useChat(userId: UserId | null) {
     createThread,
     fetchGhosts,
     dismissGhost,
+    toggleThreadClosed,
     getGhostsAfter,
     activeGhostCount,
+    typingUsers,
     fetchState,
   };
 }

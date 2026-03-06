@@ -20,6 +20,7 @@ export function ChatShell({
   isMainLoading,
   loadingContext,
   activeGhostCount,
+  typingUsers,
   showThreadNav,
   threadNavFilter,
   replyTo,
@@ -36,6 +37,7 @@ export function ChatShell({
   onSetShowThreadNav,
   onSetThreadNavFilter,
   onSelectThreadFromNav,
+  onToggleThreadClosed,
   onCloseToolbar,
 }: {
   chatMessages: ChatMessage[];
@@ -46,6 +48,7 @@ export function ChatShell({
   isMainLoading: boolean;
   loadingContext: "main" | string | null;
   activeGhostCount: number;
+  typingUsers: string[];
   showThreadNav: boolean;
   threadNavFilter: BranchThread["action"] | "all";
   replyTo: ChatMessage | null;
@@ -62,6 +65,7 @@ export function ChatShell({
   onSetShowThreadNav: (show: boolean) => void;
   onSetThreadNavFilter: (f: BranchThread["action"] | "all") => void;
   onSelectThreadFromNav: (threadId: string) => void;
+  onToggleThreadClosed?: (threadId: string, closed: boolean) => void;
   onCloseToolbar: () => void;
 }) {
   const scrollRef = useRef<HTMLDivElement>(null);
@@ -105,9 +109,15 @@ export function ChatShell({
             <h1 className="text-base font-semibold text-zinc-100">
               {currentDisplayName} & {otherDisplayName}
             </h1>
-            <p className="text-[11px] text-zinc-500">
-              Chatting as <span className="text-zinc-300">{currentDisplayName}</span>
-            </p>
+            {typingUsers.includes(otherUserId) ? (
+              <p className="text-[11px] text-green-400">
+                {otherDisplayName} is typing...
+              </p>
+            ) : (
+              <p className="text-[11px] text-zinc-500">
+                Chatting as <span className="text-zinc-300">{currentDisplayName}</span>
+              </p>
+            )}
           </div>
           <div className="flex items-center gap-2">
             {activeGhostCount > 0 && (
@@ -120,7 +130,7 @@ export function ChatShell({
                 onClick={() => { onSetShowThreadNav(true); onCloseToolbar(); }}
                 className="px-2 py-0.5 rounded-full text-[10px] font-medium bg-amber-500/20 text-amber-400 border border-amber-500/30 active:scale-95 transition-all"
               >
-                ⑂ {threads.length}
+                ⑂ {threads.filter((t) => !t.closed).length}
               </button>
             )}
             <button
@@ -160,11 +170,25 @@ export function ChatShell({
               data-thread-id={currentFocusedThreadId}
             >
               <div className="px-3 py-3 space-y-1">
-                <span className={`text-[11px] font-mono uppercase tracking-wider ${
-                  { branch: "text-amber-400", challenge: "text-red-400", define: "text-blue-400", connect: "text-green-400" }[currentFocusedThread.action]
-                }`}>
-                  {{ branch: "Branched from", challenge: "Challenge to", define: "Defining", connect: "Connected to" }[currentFocusedThread.action]}
-                </span>
+                <div className="flex items-center justify-between">
+                  <span className={`text-[11px] font-mono uppercase tracking-wider ${
+                    { branch: "text-amber-400", challenge: "text-red-400", define: "text-blue-400", connect: "text-green-400" }[currentFocusedThread.action]
+                  }`}>
+                    {{ branch: "Branched from", challenge: "Challenge to", define: "Defining", connect: "Connected to" }[currentFocusedThread.action]}
+                  </span>
+                  {onToggleThreadClosed && (
+                    <button
+                      onClick={() => onToggleThreadClosed(currentFocusedThread.id, !currentFocusedThread.closed)}
+                      className={`px-2.5 py-1 rounded-full text-[10px] font-medium transition-colors ${
+                        currentFocusedThread.closed
+                          ? "bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 hover:bg-emerald-500/30"
+                          : "bg-zinc-700/60 text-zinc-400 border border-zinc-600/50 hover:bg-zinc-700"
+                      }`}
+                    >
+                      {currentFocusedThread.closed ? "Reopen" : "Close"}
+                    </button>
+                  )}
+                </div>
                 <p className="text-[15px] leading-relaxed text-zinc-300 italic">
                   &ldquo;{currentFocusedThread.highlightedText}&rdquo;
                 </p>
@@ -290,6 +314,7 @@ export function ChatShell({
             onClose={() => onSetShowThreadNav(false)}
             filter={threadNavFilter}
             onFilterChange={onSetThreadNavFilter}
+            onToggleClosed={onToggleThreadClosed}
           />
         )}
       </AnimatePresence>

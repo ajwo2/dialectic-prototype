@@ -26,6 +26,7 @@ export interface BranchThread {
   messages: ChatMessage[];
   isCollapsed: boolean;
   sourceType: "highlight" | "ghost";
+  closed: boolean;
   createdAt: string;
 }
 

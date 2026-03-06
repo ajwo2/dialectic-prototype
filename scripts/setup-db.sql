@@ -17,6 +17,7 @@ CREATE TABLE IF NOT EXISTS threads (
   highlight_end INT NOT NULL,
   action TEXT NOT NULL,
   source_type TEXT DEFAULT 'highlight',
+  closed BOOLEAN DEFAULT false,
   created_at TIMESTAMPTZ DEFAULT now()
 );
 
@@ -26,4 +27,9 @@ CREATE TABLE IF NOT EXISTS ghosts (
   suggestion TEXT NOT NULL,
   category TEXT NOT NULL,
   dismissed BOOLEAN DEFAULT false
+);
+
+CREATE TABLE IF NOT EXISTS typing_status (
+  user_id TEXT PRIMARY KEY,
+  updated_at TIMESTAMPTZ DEFAULT now()
 );

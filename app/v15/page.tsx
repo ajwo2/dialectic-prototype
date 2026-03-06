@@ -123,6 +123,7 @@ export default function V15Page() {
         isMainLoading={chat.isMainLoading}
         loadingContext={chat.loadingContext}
         activeGhostCount={chat.activeGhostCount}
+        typingUsers={chat.typingUsers}
         showThreadNav={threadNav.showThreadNav}
         threadNavFilter={threadNav.threadNavFilter}
         replyTo={chat.replyTo}
@@ -142,6 +143,7 @@ export default function V15Page() {
         onSetShowThreadNav={threadNav.setShowThreadNav}
         onSetThreadNavFilter={threadNav.setThreadNavFilter}
         onSelectThreadFromNav={handleSelectThreadFromNav}
+        onToggleThreadClosed={chat.toggleThreadClosed}
         onCloseToolbar={selection.closeToolbar}
       />
 

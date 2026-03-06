@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import { motion } from "framer-motion";
 import type { ChatMessage, BranchThread } from "../lib/types";
 import { formatRelativeTime } from "../lib/formatters";
@@ -11,6 +12,7 @@ export function ThreadNavigator({
   onClose,
   filter,
   onFilterChange,
+  onToggleClosed,
 }: {
   threads: BranchThread[];
   chatMessages: ChatMessage[];
@@ -18,6 +20,7 @@ export function ThreadNavigator({
   onClose: () => void;
   filter: BranchThread["action"] | "all";
   onFilterChange: (f: BranchThread["action"] | "all") => void;
+  onToggleClosed?: (threadId: string, closed: boolean) => void;
 }) {
   const actionColors: Record<string, string> = {
     branch: "bg-amber-500",
@@ -55,8 +58,14 @@ export function ThreadNavigator({
     return "";
   };
 
-  const filtered = filter === "all" ? threads : threads.filter((t) => t.action === filter);
+  const activeThreads = threads.filter((t) => !t.closed);
+  const archivedThreads = threads.filter((t) => t.closed);
+  const [showArchived, setShowArchived] = useState(false);
+
+  const filtered = filter === "all" ? activeThreads : activeThreads.filter((t) => t.action === filter);
   const sorted = [...filtered].sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+  const archivedFiltered = filter === "all" ? archivedThreads : archivedThreads.filter((t) => t.action === filter);
+  const archivedSorted = [...archivedFiltered].sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
 
   const filterOptions: { key: BranchThread["action"] | "all"; label: string; color: string }[] = [
     { key: "all", label: "All", color: "bg-zinc-500" },
@@ -90,7 +99,7 @@ export function ThreadNavigator({
           <div className="w-10 h-1 rounded-full bg-zinc-600 mx-auto mb-3" />
           <div className="flex items-center justify-between">
             <h2 className="text-base font-semibold text-zinc-100">
-              Threads <span className="text-zinc-500 text-sm font-normal">({threads.length})</span>
+              Threads <span className="text-zinc-500 text-sm font-normal">({activeThreads.length})</span>
             </h2>
             <button onClick={onClose} className="w-7 h-7 rounded-full bg-zinc-800 flex items-center justify-center text-zinc-400 hover:text-zinc-200 transition-colors">
               <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
@@ -101,7 +110,7 @@ export function ThreadNavigator({
         <div className="flex-shrink-0 px-4 pb-3 overflow-x-auto scrollbar-hide">
           <div className="flex gap-2">
             {filterOptions.map((opt) => {
-              const count = opt.key === "all" ? threads.length : threads.filter((t) => t.action === opt.key).length;
+              const count = opt.key === "all" ? activeThreads.length : activeThreads.filter((t) => t.action === opt.key).length;
               if (opt.key !== "all" && count === 0) return null;
               const isActive = filter === opt.key;
               return (
@@ -122,7 +131,7 @@ export function ThreadNavigator({
         </div>
 
         <div className="flex-1 overflow-y-auto px-4 pb-[env(safe-area-inset-bottom)]">
-          {sorted.length === 0 ? (
+          {sorted.length === 0 && archivedSorted.length === 0 ? (
             <div className="text-center py-10 text-zinc-500 text-sm">No threads yet</div>
           ) : (
             <div className="space-y-2 pb-4">
@@ -162,6 +171,73 @@ export function ThreadNavigator({
                   </button>
                 );
               })}
+
+              {archivedSorted.length > 0 && (
+                <>
+                  <button
+                    onClick={() => setShowArchived((v) => !v)}
+                    className="w-full flex items-center gap-2 py-2 mt-2 text-zinc-500 hover:text-zinc-400 transition-colors"
+                  >
+                    <svg className={`w-3 h-3 transition-transform ${showArchived ? "rotate-90" : ""}`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                    </svg>
+                    <span className="text-[11px] font-medium uppercase tracking-wide">Archived</span>
+                    <span className="text-[10px] text-zinc-600">{archivedSorted.length}</span>
+                  </button>
+
+                  {showArchived && archivedSorted.map((thread) => {
+                    const depth = getThreadDepth(thread);
+                    const parentPreview = getParentMessagePreview(thread);
+                    return (
+                      <div
+                        key={thread.id}
+                        className="w-full text-left p-3 rounded-xl bg-zinc-800/30 border border-zinc-700/30 opacity-70"
+                      >
+                        <div className="flex items-start gap-2.5">
+                          <span className={`w-2.5 h-2.5 rounded-full mt-1 flex-shrink-0 ${actionColors[thread.action]}`} />
+                          <div className="min-w-0 flex-1">
+                            <button
+                              onClick={() => onSelectThread(thread.id)}
+                              className="text-left"
+                            >
+                              <p className="text-[13px] text-zinc-400 line-clamp-2 leading-snug">
+                                &ldquo;{thread.highlightedText}&rdquo;
+                              </p>
+                            </button>
+                            <div className="flex items-center gap-2 mt-1.5 flex-wrap">
+                              <span className="text-[10px] text-zinc-500 font-medium uppercase tracking-wide">{actionLabels[thread.action]}</span>
+                              <span className="text-[10px] text-zinc-600">·</span>
+                              <span className="text-[10px] text-zinc-500">{thread.messages.length} {thread.messages.length === 1 ? "reply" : "replies"}</span>
+                              {depth > 0 && (
+                                <>
+                                  <span className="text-[10px] text-zinc-600">·</span>
+                                  <span className="text-[10px] text-zinc-500">{"↳".repeat(depth)} depth {depth}</span>
+                                </>
+                              )}
+                              <span className="text-[10px] text-zinc-600">·</span>
+                              <span className="text-[10px] text-zinc-500">{formatRelativeTime(thread.createdAt)}</span>
+                              {onToggleClosed && (
+                                <>
+                                  <span className="text-[10px] text-zinc-600">·</span>
+                                  <button
+                                    onClick={(e) => { e.stopPropagation(); onToggleClosed(thread.id, false); }}
+                                    className="text-[10px] text-emerald-500 hover:text-emerald-400 font-medium transition-colors"
+                                  >
+                                    Reopen
+                                  </button>
+                                </>
+                              )}
+                            </div>
+                            {parentPreview && (
+                              <p className="text-[11px] text-zinc-600 truncate mt-1">↩ {parentPreview.slice(0, 60)}</p>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </>
+              )}
             </div>
           )}
         </div>

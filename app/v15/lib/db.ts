@@ -21,6 +21,7 @@ export interface DbThread {
   highlight_end: number;
   action: string;
   source_type: string;
+  closed: boolean;
   created_at: string;
 }
 
