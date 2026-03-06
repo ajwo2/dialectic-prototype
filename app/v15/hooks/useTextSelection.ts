@@ -19,14 +19,16 @@ export function useTextSelection(
     const range = selection.getRangeAt(0);
     const rect = range.getBoundingClientRect();
 
-    // Walk up to find message element
-    let node: Node | null = range.startContainer;
-    let messageId: string | null = null;
+    // Find the message <p data-message-id> element that contains this selection.
+    // Walk up from the range's common ancestor to find it.
+    let messageEl: HTMLElement | null = null;
     let threadId: string | null = null;
+
+    let node: Node | null = range.commonAncestorContainer;
     while (node) {
       if (node instanceof HTMLElement) {
-        if (!messageId && node.dataset.messageId) {
-          messageId = node.dataset.messageId;
+        if (!messageEl && node.dataset.messageId && node.tagName === "P") {
+          messageEl = node;
         }
         if (!threadId && node.dataset.threadId) {
           threadId = node.dataset.threadId;
@@ -35,10 +37,25 @@ export function useTextSelection(
       node = node.parentNode;
     }
 
-    if (!messageId) return;
+    // Also check if the range.startContainer is inside a different message
+    // (for cross-element selections, we use commonAncestorContainer above)
+    if (!messageEl) {
+      let startNode: Node | null = range.startContainer;
+      while (startNode) {
+        if (startNode instanceof HTMLElement && startNode.dataset.messageId && startNode.tagName === "P") {
+          messageEl = startNode;
+          break;
+        }
+        startNode = startNode.parentNode;
+      }
+    }
 
-    // Extract offsets from data-offset-* attributes
-    const offsets = extractSelectionOffsets(range);
+    if (!messageEl) return;
+
+    const messageId = messageEl.dataset.messageId!;
+
+    // Use TreeWalker-based offset extraction relative to the message <p> element
+    const offsets = extractSelectionOffsets(range, messageEl);
 
     if (offsets) {
       // Find the message content to extract highlighted text
@@ -46,17 +63,29 @@ export function useTextSelection(
         chatMessages.find((m) => m.id === messageId) ??
         threads.flatMap((t) => t.messages).find((m) => m.id === messageId);
 
-      const text = msg
-        ? msg.content.slice(offsets.start, offsets.end).trim()
-        : selection.toString().trim();
+      const rawSlice = msg ? msg.content.slice(offsets.start, offsets.end) : null;
+      const text = rawSlice ? rawSlice.trim() : selection.toString().trim();
 
       if (text.length < 3) return;
+
+      // Compute trimmed offsets: adjust start/end to match the trimmed text
+      // so the highlight aligns exactly with the trimmed text in the content
+      let highlightStart = offsets.start;
+      let highlightEnd = offsets.end;
+      if (rawSlice && msg) {
+        const leadingWhitespace = rawSlice.length - rawSlice.trimStart().length;
+        const trailingWhitespace = rawSlice.length - rawSlice.trimEnd().length;
+        highlightStart = offsets.start + leadingWhitespace;
+        highlightEnd = offsets.end - trailingWhitespace;
+      }
 
       debug.log("selection", "capture", {
         rawText: selection.toString(),
         computedOffsets: offsets,
+        trimmedOffsets: { start: highlightStart, end: highlightEnd },
         extractedText: text,
         messageId,
+        rootTextContent: messageEl.textContent?.slice(0, 50),
       });
 
       setToolbar({
@@ -65,18 +94,18 @@ export function useTextSelection(
         text,
         messageId,
         threadId,
-        highlightStart: offsets.start,
-        highlightEnd: offsets.start + text.length,
+        highlightStart,
+        highlightEnd,
       });
     } else {
-      // Fallback: use selection text directly (no offset data available)
+      // Fallback: no valid offsets computed
       const text = selection.toString().trim();
       if (text.length < 3) return;
 
       debug.log("selection", "capture-fallback", {
         text,
-        messageId,
-        reason: "no data-offset attributes found",
+        messageId: messageEl.dataset.messageId,
+        reason: "extractSelectionOffsets returned null",
       });
 
       setToolbar({
