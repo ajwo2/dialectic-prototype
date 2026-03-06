@@ -1,9 +1,11 @@
 export interface ChatMessage {
   id: string;
   role: "user" | "assistant";
+  authorId: string;
   content: string;
   timestamp: string;
   replyToId?: string;
+  threadId?: string | null;
 }
 
 export interface GhostBranch {

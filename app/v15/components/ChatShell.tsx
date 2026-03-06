@@ -23,6 +23,9 @@ export function ChatShell({
   showThreadNav,
   threadNavFilter,
   replyTo,
+  currentUserId,
+  displayNameFor,
+  onSwitchIdentity,
   getThreadsForMessage,
   getGhostsAfter,
   onFocusThread,
@@ -46,6 +49,9 @@ export function ChatShell({
   showThreadNav: boolean;
   threadNavFilter: BranchThread["action"] | "all";
   replyTo: ChatMessage | null;
+  currentUserId: string;
+  displayNameFor: (authorId: string) => string;
+  onSwitchIdentity: () => void;
   getThreadsForMessage: (messageId: string, parentThreadId: string | null) => BranchThread[];
   getGhostsAfter: (messageId: string) => GhostBranch[];
   onFocusThread: (threadId: string) => void;
@@ -67,6 +73,10 @@ export function ChatShell({
       el.scrollTo({ top: el.scrollHeight, behavior: "smooth" });
     }
   }, [chatMessages, loadingContext, threads]);
+
+  const currentDisplayName = displayNameFor(currentUserId);
+  const otherUserId = currentUserId === "aj" ? "suz" : "aj";
+  const otherDisplayName = displayNameFor(otherUserId);
 
   return (
     <>
@@ -92,9 +102,11 @@ export function ChatShell({
             </svg>
           </Link>
           <div className="flex-1">
-            <h1 className="text-base font-semibold text-zinc-100">Suz</h1>
+            <h1 className="text-base font-semibold text-zinc-100">
+              {currentDisplayName} & {otherDisplayName}
+            </h1>
             <p className="text-[11px] text-zinc-500">
-              {isMainLoading ? "typing..." : "iMessage"}
+              Chatting as <span className="text-zinc-300">{currentDisplayName}</span>
             </p>
           </div>
           <div className="flex items-center gap-2">
@@ -111,9 +123,14 @@ export function ChatShell({
                 ⑂ {threads.length}
               </button>
             )}
-            <div className="w-8 h-8 rounded-full bg-purple-500 flex items-center justify-center text-[10px] font-bold text-white">
-              SZ
-            </div>
+            <button
+              onClick={onSwitchIdentity}
+              className="w-8 h-8 rounded-full flex items-center justify-center text-[10px] font-bold text-white active:scale-95 transition-all"
+              style={{ backgroundColor: currentUserId === "aj" ? "#3b82f6" : "#a855f7" }}
+              title={`Switch to ${otherDisplayName}`}
+            >
+              {currentUserId === "aj" ? "AJ" : "SZ"}
+            </button>
           </div>
         </div>
       </header>
@@ -154,9 +171,9 @@ export function ChatShell({
               </div>
 
               {currentFocusedThread.messages.map((msg, i) => {
-                const isMe = msg.role === "user";
+                const isMe = msg.authorId === currentUserId;
                 const prev = i > 0 ? currentFocusedThread.messages[i - 1] : null;
-                const showTail = !prev || prev.role !== msg.role;
+                const showTail = !prev || prev.authorId !== msg.authorId;
                 const isLast = i === currentFocusedThread.messages.length - 1 && loadingContext !== currentFocusedThreadId;
                 const childThreads = getThreadsForMessage(msg.id, currentFocusedThreadId);
 
@@ -171,6 +188,7 @@ export function ChatShell({
                       allMessages={currentFocusedThread.messages}
                       onSwipeReply={onSwipeReply}
                       onFocusThread={onFocusThread}
+                      displayNameFor={displayNameFor}
                     />
                     <AnimatePresence>
                       {childThreads.map((t) => (
@@ -209,7 +227,7 @@ export function ChatShell({
 
               {chatMessages.length === 0 && (
                 <div className="px-6 py-12 text-center">
-                  <p className="text-[14px] text-zinc-400 mb-1">Start a conversation with Suz</p>
+                  <p className="text-[14px] text-zinc-400 mb-1">No messages yet</p>
                   <p className="text-[11px] text-zinc-600">
                     Select text to branch, challenge, or define. Ghost branches appear as the conversation develops.
                   </p>
@@ -217,9 +235,9 @@ export function ChatShell({
               )}
 
               {chatMessages.map((msg, i) => {
-                const isMe = msg.role === "user";
+                const isMe = msg.authorId === currentUserId;
                 const prev = i > 0 ? chatMessages[i - 1] : null;
-                const showTail = !prev || prev.role !== msg.role;
+                const showTail = !prev || prev.authorId !== msg.authorId;
                 const isLast = i === chatMessages.length - 1 && !isMainLoading;
                 const messageThreads = getThreadsForMessage(msg.id, null);
                 const messageGhosts = getGhostsAfter(msg.id);
@@ -235,6 +253,7 @@ export function ChatShell({
                       allMessages={chatMessages}
                       onSwipeReply={onSwipeReply}
                       onFocusThread={onFocusThread}
+                      displayNameFor={displayNameFor}
                     />
                     <AnimatePresence>
                       {messageThreads.map((t) => (

@@ -17,6 +17,7 @@ export function MessageBubble({
   allMessages,
   onSwipeReply,
   onFocusThread,
+  displayNameFor,
 }: {
   message: ChatMessage;
   isMe: boolean;
@@ -26,6 +27,7 @@ export function MessageBubble({
   allMessages: ChatMessage[];
   onSwipeReply: (message: ChatMessage) => void;
   onFocusThread: (threadId: string) => void;
+  displayNameFor?: (authorId: string) => string;
 }) {
   const [swipeX, setSwipeX] = useState(0);
   const touchStartX = useRef(0);
@@ -35,6 +37,10 @@ export function MessageBubble({
   const replyToMessage = message.replyToId
     ? allMessages.find((m) => m.id === message.replyToId)
     : null;
+
+  const senderName = displayNameFor
+    ? displayNameFor(message.authorId)
+    : message.authorId === "suz" ? "Suz" : "A.J.";
 
   const handleTouchStart = (e: React.TouchEvent) => {
     touchStartX.current = e.touches[0].clientX;
@@ -63,6 +69,12 @@ export function MessageBubble({
 
   // Build highlight ranges from stored offsets
   const highlights = buildHighlightRanges(threads);
+
+  const replyToName = replyToMessage
+    ? displayNameFor
+      ? displayNameFor(replyToMessage.authorId)
+      : replyToMessage.authorId === "suz" ? "Suz" : "A.J."
+    : "";
 
   return (
     <motion.div
@@ -110,14 +122,14 @@ export function MessageBubble({
                 : "bg-zinc-700/50 border-zinc-500/50"
             }`}>
               <p className="text-[10px] font-semibold opacity-70 mb-0.5">
-                {replyToMessage.role === "user" ? "You" : "Suz"}
+                {replyToName}
               </p>
               <p className="text-[11px] opacity-70 line-clamp-2">{replyToMessage.content}</p>
             </div>
           )}
 
           {!isMe && showTail && (
-            <p className="text-[11px] font-semibold text-purple-400 mb-0.5">Suz</p>
+            <p className="text-[11px] font-semibold text-purple-400 mb-0.5">{senderName}</p>
           )}
 
           <div className="text-[15px] leading-relaxed">

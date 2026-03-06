@@ -1,39 +1,50 @@
 "use client";
 
 import { AnimatePresence } from "framer-motion";
+import { useIdentity } from "./hooks/useIdentity";
 import { useChat } from "./hooks/useChat";
-import { useThreads } from "./hooks/useThreads";
-import { useGhosts } from "./hooks/useGhosts";
+import { useThreadNav } from "./hooks/useThreads";
 import { useTextSelection } from "./hooks/useTextSelection";
 import { useDebugLog } from "./hooks/useDebugLog";
 import type { BranchThread, GhostBranch } from "./lib/types";
 import { ChatShell } from "./components/ChatShell";
 import { FloatingToolbar } from "./components/FloatingToolbar";
 import { Composer } from "./components/Composer";
+import { IdentityPicker } from "./components/IdentityPicker";
 import { BUILD_VERSION, BUILD_TIMESTAMP } from "./lib/constants";
 
 export default function V15Page() {
   useDebugLog();
 
-  const chat = useChat();
-  const threadState = useThreads(
-    chat.chatMessages,
-    chat.loadingContext,
-    chat.setLoadingContext,
-    chat.setError,
-  );
-  const ghostState = useGhosts();
-  const selection = useTextSelection(chat.chatMessages, threadState.threads);
+  const { userId, identity, loaded, pickIdentity, switchIdentity, displayNameFor } = useIdentity();
+  const chat = useChat(userId);
+  const threadNav = useThreadNav(chat.threads);
+  const selection = useTextSelection(chat.chatMessages, chat.threads);
+
+  // Show identity picker if not yet selected
+  if (!loaded) return null;
+  if (!userId || !identity) {
+    return <IdentityPicker onPick={pickIdentity} />;
+  }
+
+  // Show loading state while fetching initial data
+  if (!chat.initialized) {
+    return (
+      <div className="flex flex-col min-h-dvh bg-zinc-950 items-center justify-center">
+        <div className="text-zinc-500 text-sm">Loading conversation...</div>
+      </div>
+    );
+  }
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (threadState.currentFocusedThreadId) {
-      threadState.sendThreadMessage(threadState.currentFocusedThreadId, chat.inputValue);
+    if (threadNav.currentFocusedThreadId) {
+      chat.postThreadMessage(threadNav.currentFocusedThreadId, chat.inputValue);
       chat.setInputValue("");
     } else {
-      chat.sendMessage(chat.inputValue).then((allMessages) => {
+      chat.postMessage(chat.inputValue).then((allMessages) => {
         if (allMessages) {
-          ghostState.fetchGhosts(allMessages);
+          chat.fetchGhosts(allMessages);
         }
       });
     }
@@ -46,8 +57,12 @@ export default function V15Page() {
     highlightStart: number,
     highlightEnd: number,
   ) => {
-    const parentThreadId = selection.toolbar?.threadId ?? threadState.currentFocusedThreadId;
-    threadState.createThread(action, text, messageId, highlightStart, highlightEnd, parentThreadId);
+    const parentThreadId = selection.toolbar?.threadId ?? threadNav.currentFocusedThreadId;
+    chat.createThread(action, text, messageId, highlightStart, highlightEnd, parentThreadId).then((newThread) => {
+      if (newThread) {
+        threadNav.setFocusStack((prev) => [...prev, newThread.id]);
+      }
+    });
     selection.closeToolbar();
     window.getSelection()?.removeAllRanges();
 
@@ -65,16 +80,20 @@ export default function V15Page() {
   };
 
   const handleMaterializeGhost = (ghost: GhostBranch) => {
-    ghostState.dismissGhost(ghost.id);
-    threadState.createThread(
+    chat.dismissGhost(ghost.id);
+    chat.createThread(
       "branch",
       ghost.suggestion,
       ghost.afterMessageId,
-      -1, // ghosts don't have text offsets
       -1,
-      threadState.currentFocusedThreadId,
+      -1,
+      threadNav.currentFocusedThreadId,
       "ghost",
-    );
+    ).then((newThread) => {
+      if (newThread) {
+        threadNav.setFocusStack((prev) => [...prev, newThread.id]);
+      }
+    });
 
     setTimeout(() => {
       chat.setInputValue(ghost.suggestion);
@@ -83,46 +102,45 @@ export default function V15Page() {
   };
 
   const handleSelectThreadFromNav = (threadId: string) => {
-    threadState.setFocusStack(threadState.buildFocusPath(threadId));
-    threadState.setShowThreadNav(false);
+    threadNav.setFocusStack(threadNav.buildFocusPath(threadId));
+    threadNav.setShowThreadNav(false);
   };
 
   const composerPlaceholder = chat.replyTo
-    ? `Reply to ${chat.replyTo.role === "user" ? "yourself" : "Suz"}...`
-    : threadState.currentFocusedThread
+    ? `Reply to ${displayNameFor(chat.replyTo.authorId)}...`
+    : threadNav.currentFocusedThread
       ? "Reply in thread..."
-      : "iMessage";
-
-  const composerDisabled = threadState.currentFocusedThread
-    ? chat.loadingContext === threadState.currentFocusedThreadId
-    : chat.isMainLoading;
+      : `Message as ${identity.displayName}`;
 
   return (
     <div className="flex flex-col min-h-dvh bg-zinc-950">
       <ChatShell
         chatMessages={chat.chatMessages}
-        threads={threadState.threads}
-        focusStack={threadState.focusStack}
-        currentFocusedThreadId={threadState.currentFocusedThreadId}
-        currentFocusedThread={threadState.currentFocusedThread}
+        threads={chat.threads}
+        focusStack={threadNav.focusStack}
+        currentFocusedThreadId={threadNav.currentFocusedThreadId}
+        currentFocusedThread={threadNav.currentFocusedThread}
         isMainLoading={chat.isMainLoading}
         loadingContext={chat.loadingContext}
-        activeGhostCount={ghostState.activeGhostCount}
-        showThreadNav={threadState.showThreadNav}
-        threadNavFilter={threadState.threadNavFilter}
+        activeGhostCount={chat.activeGhostCount}
+        showThreadNav={threadNav.showThreadNav}
+        threadNavFilter={threadNav.threadNavFilter}
         replyTo={chat.replyTo}
-        getThreadsForMessage={threadState.getThreadsForMessage}
-        getGhostsAfter={ghostState.getGhostsAfter}
-        onFocusThread={threadState.focusThread}
-        onNavigateBreadcrumb={threadState.navigateBreadcrumb}
+        currentUserId={userId}
+        displayNameFor={displayNameFor}
+        onSwitchIdentity={switchIdentity}
+        getThreadsForMessage={threadNav.getThreadsForMessage}
+        getGhostsAfter={chat.getGhostsAfter}
+        onFocusThread={threadNav.focusThread}
+        onNavigateBreadcrumb={threadNav.navigateBreadcrumb}
         onSwipeReply={(m) => {
           chat.setReplyTo(m);
           chat.inputRef.current?.focus();
         }}
         onMaterializeGhost={handleMaterializeGhost}
-        onDismissGhost={ghostState.dismissGhost}
-        onSetShowThreadNav={threadState.setShowThreadNav}
-        onSetThreadNavFilter={threadState.setThreadNavFilter}
+        onDismissGhost={chat.dismissGhost}
+        onSetShowThreadNav={threadNav.setShowThreadNav}
+        onSetThreadNavFilter={threadNav.setThreadNavFilter}
         onSelectThreadFromNav={handleSelectThreadFromNav}
         onCloseToolbar={selection.closeToolbar}
       />
@@ -158,7 +176,7 @@ export default function V15Page() {
         onSubmit={handleSubmit}
         replyTo={chat.replyTo}
         onDismissReply={() => chat.setReplyTo(null)}
-        disabled={composerDisabled}
+        disabled={false}
         placeholder={composerPlaceholder}
       />
     </div>
