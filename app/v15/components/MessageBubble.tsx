@@ -82,7 +82,7 @@ export function MessageBubble({
       initial={{ opacity: 0, y: 12, scale: 0.97 }}
       animate={{ opacity: 1, y: 0, scale: 1 }}
       transition={{ type: "spring", damping: 25, stiffness: 250 }}
-      className={`flex ${isMe ? "justify-end" : "justify-start"} ${showTail ? "mt-2" : "mt-0.5"} select-text relative`}
+      className={`flex ${isMe ? "justify-end" : "justify-start"} ${showTail ? "mt-2" : "mt-0.5"} select-text suppress-native-select relative`}
     >
       {/* Swipe reply indicator */}
       <AnimatePresence>

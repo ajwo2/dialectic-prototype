@@ -16,6 +16,9 @@ export function useTextSelection(
     if (!selection || selection.isCollapsed || !selection.toString().trim()) return;
     if (selection.toString().trim().length < 3) return;
 
+    // On mobile, add a small delay so we can capture the range before clearing
+    // the selection to dismiss the native toolbar (Copy/Share/Select all)
+
     const range = selection.getRangeAt(0);
     const rect = range.getBoundingClientRect();
 
@@ -97,6 +100,12 @@ export function useTextSelection(
         highlightStart,
         highlightEnd,
       });
+
+      // Clear native selection to dismiss the mobile browser toolbar
+      // (Copy/Share/Select all). Our app stores the selection data above.
+      requestAnimationFrame(() => {
+        window.getSelection()?.removeAllRanges();
+      });
     } else {
       // Fallback: no valid offsets computed
       const text = selection.toString().trim();
@@ -117,15 +126,35 @@ export function useTextSelection(
         highlightStart: -1,
         highlightEnd: -1,
       });
+
+      // Clear native selection to dismiss the mobile browser toolbar
+      requestAnimationFrame(() => {
+        window.getSelection()?.removeAllRanges();
+      });
     }
   }, [chatMessages, threads]);
 
   useEffect(() => {
     document.addEventListener("mouseup", handleSelectionChange);
-    document.addEventListener("touchend", handleSelectionChange);
+    // Use a short delay on touchend so the selection is fully resolved before we read it
+    const handleTouchEnd = () => {
+      setTimeout(handleSelectionChange, 10);
+    };
+    document.addEventListener("touchend", handleTouchEnd);
+
+    // Prevent native context menu on message bubbles to avoid competing with app toolbar
+    const preventContextMenu = (e: Event) => {
+      const target = e.target as HTMLElement;
+      if (target.closest?.("[data-message-id]")) {
+        e.preventDefault();
+      }
+    };
+    document.addEventListener("contextmenu", preventContextMenu);
+
     return () => {
       document.removeEventListener("mouseup", handleSelectionChange);
-      document.removeEventListener("touchend", handleSelectionChange);
+      document.removeEventListener("touchend", handleTouchEnd);
+      document.removeEventListener("contextmenu", preventContextMenu);
     };
   }, [handleSelectionChange]);
 
