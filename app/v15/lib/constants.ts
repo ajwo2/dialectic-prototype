@@ -1,5 +1,8 @@
 import type { BranchThread } from "./types";
 
+export const BUILD_VERSION = "v15.1.0";
+export const BUILD_TIMESTAMP = "2026-03-06 14:11";
+
 export const ACTION_HIGHLIGHT_COLORS: Record<BranchThread["action"], { bg: string; pill: string }> = {
   branch: {
     bg: "bg-amber-400/30 underline decoration-amber-400/60 decoration-2 underline-offset-2",

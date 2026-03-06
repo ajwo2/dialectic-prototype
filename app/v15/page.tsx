@@ -10,6 +10,7 @@ import type { BranchThread, GhostBranch } from "./lib/types";
 import { ChatShell } from "./components/ChatShell";
 import { FloatingToolbar } from "./components/FloatingToolbar";
 import { Composer } from "./components/Composer";
+import { BUILD_VERSION, BUILD_TIMESTAMP } from "./lib/constants";
 
 export default function V15Page() {
   useDebugLog();
@@ -143,6 +144,11 @@ export default function V15Page() {
           />
         )}
       </AnimatePresence>
+
+      {/* Build watermark */}
+      <div className="fixed bottom-14 right-2 z-10 text-[9px] text-zinc-700 font-mono pointer-events-none select-none">
+        {BUILD_VERSION} · {BUILD_TIMESTAMP}
+      </div>
 
       {/* Composer */}
       <Composer
