@@ -10,8 +10,8 @@ export interface Identity {
 }
 
 const IDENTITIES: Record<UserId, Identity> = {
-  aj: { userId: "aj", displayName: "A.J." },
-  suz: { userId: "suz", displayName: "Suz" },
+  aj: { userId: "aj", displayName: "Player 1" },
+  suz: { userId: "suz", displayName: "Player 2" },
 };
 
 const STORAGE_KEY = "dialectic-userId";

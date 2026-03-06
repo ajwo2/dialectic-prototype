@@ -19,7 +19,7 @@ export function ReplyPreview({
     >
       <div className="min-w-0 flex-1">
         <p className="text-[10px] font-semibold text-blue-400 mb-0.5">
-          {message.authorId === "aj" ? "A.J." : "Suz"}
+          {message.authorId === "aj" ? "Player 1" : "Player 2"}
         </p>
         <p className="text-[12px] text-zinc-400 truncate">{message.content}</p>
       </div>

@@ -139,7 +139,7 @@ export function ChatShell({
               style={{ backgroundColor: currentUserId === "aj" ? "#3b82f6" : "#a855f7" }}
               title={`Switch to ${otherDisplayName}`}
             >
-              {currentUserId === "aj" ? "AJ" : "SZ"}
+              {currentUserId === "aj" ? "P1" : "P2"}
             </button>
           </div>
         </div>

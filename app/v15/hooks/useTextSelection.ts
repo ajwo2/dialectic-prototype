@@ -11,7 +11,7 @@ export function useTextSelection(
 ) {
   const [toolbar, setToolbar] = useState<SelectionToolbar | null>(null);
 
-  const handleSelectionChange = useCallback(() => {
+  const processSelection = useCallback(() => {
     const selection = window.getSelection();
     if (!selection || selection.isCollapsed || !selection.toString().trim()) return;
     if (selection.toString().trim().length < 3) return;
@@ -118,16 +118,46 @@ export function useTextSelection(
         highlightEnd: -1,
       });
     }
+
+    // Immediately clear native selection to dismiss Android Chrome's
+    // action toolbar (Copy/Share/Select all). Our app stores the
+    // selection data in state above, so the native selection is no
+    // longer needed.
+    selection.removeAllRanges();
   }, [chatMessages, threads]);
 
   useEffect(() => {
-    document.addEventListener("mouseup", handleSelectionChange);
-    document.addEventListener("touchend", handleSelectionChange);
-    return () => {
-      document.removeEventListener("mouseup", handleSelectionChange);
-      document.removeEventListener("touchend", handleSelectionChange);
+    // On desktop, process on mouseup
+    document.addEventListener("mouseup", processSelection);
+
+    // On mobile, use selectionchange for faster response — the native
+    // toolbar appears as soon as selection is created, so we need to
+    // intercept it via selectionchange rather than waiting for touchend.
+    let selectionTimeout: ReturnType<typeof setTimeout> | null = null;
+    const handleSelectionChange = () => {
+      // Debounce: selectionchange fires many times during drag-to-select.
+      // Process once the user stops adjusting (80ms after last change).
+      if (selectionTimeout) clearTimeout(selectionTimeout);
+      selectionTimeout = setTimeout(processSelection, 80);
     };
-  }, [handleSelectionChange]);
+    document.addEventListener("selectionchange", handleSelectionChange);
+
+    // Prevent native context menu on message bubbles to avoid competing with app toolbar
+    const preventContextMenu = (e: Event) => {
+      const target = e.target as HTMLElement;
+      if (target.closest?.("[data-message-id]")) {
+        e.preventDefault();
+      }
+    };
+    document.addEventListener("contextmenu", preventContextMenu);
+
+    return () => {
+      document.removeEventListener("mouseup", processSelection);
+      document.removeEventListener("selectionchange", handleSelectionChange);
+      document.removeEventListener("contextmenu", preventContextMenu);
+      if (selectionTimeout) clearTimeout(selectionTimeout);
+    };
+  }, [processSelection]);
 
   const closeToolbar = useCallback(() => {
     setToolbar(null);

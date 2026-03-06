@@ -28,9 +28,9 @@ export function IdentityPicker({ onPick }: { onPick: (id: UserId) => void }) {
             className="flex flex-col items-center gap-3 px-8 py-6 rounded-2xl bg-blue-500/10 border border-blue-500/30 hover:bg-blue-500/20 transition-colors"
           >
             <div className="w-14 h-14 rounded-full bg-blue-500 flex items-center justify-center text-lg font-bold text-white">
-              AJ
+              P1
             </div>
-            <span className="text-base font-medium text-zinc-100">A.J.</span>
+            <span className="text-base font-medium text-zinc-100">Player 1</span>
           </motion.button>
 
           <motion.button
@@ -40,9 +40,9 @@ export function IdentityPicker({ onPick }: { onPick: (id: UserId) => void }) {
             className="flex flex-col items-center gap-3 px-8 py-6 rounded-2xl bg-purple-500/10 border border-purple-500/30 hover:bg-purple-500/20 transition-colors"
           >
             <div className="w-14 h-14 rounded-full bg-purple-500 flex items-center justify-center text-lg font-bold text-white">
-              SZ
+              P2
             </div>
-            <span className="text-base font-medium text-zinc-100">Suz</span>
+            <span className="text-base font-medium text-zinc-100">Player 2</span>
           </motion.button>
         </div>
       </div>
