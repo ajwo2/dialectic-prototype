@@ -1159,15 +1159,15 @@ export default function V15Page() {
               data-thread-id={currentFocusedThreadId}
             >
               {/* Thread header */}
-              <div className="flex items-center gap-2 px-2 py-3">
-                <span className={`text-[10px] font-mono uppercase tracking-wider ${
+              <div className="px-3 py-3 space-y-1">
+                <span className={`text-[11px] font-mono uppercase tracking-wider ${
                   { branch: "text-amber-400", challenge: "text-red-400", define: "text-blue-400", connect: "text-green-400" }[currentFocusedThread.action]
                 }`}>
                   {{ branch: "Branched from", challenge: "Challenge to", define: "Defining", connect: "Connected to" }[currentFocusedThread.action]}
                 </span>
-                <span className="text-[12px] text-zinc-400 italic truncate">
-                  &ldquo;{currentFocusedThread.highlightedText.slice(0, 50)}{currentFocusedThread.highlightedText.length > 50 ? "..." : ""}&rdquo;
-                </span>
+                <p className="text-[15px] leading-relaxed text-zinc-300 italic">
+                  &ldquo;{currentFocusedThread.highlightedText}&rdquo;
+                </p>
               </div>
 
               {/* Thread messages as full-size bubbles */}
