@@ -45,14 +45,11 @@ body {
   word-break: break-word;
 }
 
-/* Suppress native mobile selection toolbar (Copy/Share/Select all)
-   while keeping text selectable for the app's own selection handling */
+/* On mobile, suppress native selection UI (Copy/Share/Select all toolbar).
+   The app captures selection via selectionchange + removeAllRanges().
+   -webkit-touch-callout: none suppresses iOS callout menu. */
 .suppress-native-select {
   -webkit-touch-callout: none;
   -webkit-user-select: text;
   user-select: text;
-}
-
-.suppress-native-select ::selection {
-  background: rgba(59, 130, 246, 0.3);
 }

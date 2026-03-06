@@ -165,8 +165,8 @@ export default function V15Page() {
         )}
       </AnimatePresence>
 
-      {/* Build watermark */}
-      <div className="fixed bottom-14 right-2 z-10 text-[9px] text-zinc-700 font-mono pointer-events-none select-none">
+      {/* Build watermark — z-30 to stay above Composer (z-20) */}
+      <div className="fixed bottom-14 right-2 z-30 text-[9px] text-zinc-700 font-mono pointer-events-none select-none">
         {BUILD_VERSION} · {BUILD_TIMESTAMP}
       </div>
 

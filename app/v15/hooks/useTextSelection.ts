@@ -11,13 +11,10 @@ export function useTextSelection(
 ) {
   const [toolbar, setToolbar] = useState<SelectionToolbar | null>(null);
 
-  const handleSelectionChange = useCallback(() => {
+  const processSelection = useCallback(() => {
     const selection = window.getSelection();
     if (!selection || selection.isCollapsed || !selection.toString().trim()) return;
     if (selection.toString().trim().length < 3) return;
-
-    // On mobile, add a small delay so we can capture the range before clearing
-    // the selection to dismiss the native toolbar (Copy/Share/Select all)
 
     const range = selection.getRangeAt(0);
     const rect = range.getBoundingClientRect();
@@ -100,12 +97,6 @@ export function useTextSelection(
         highlightStart,
         highlightEnd,
       });
-
-      // Clear native selection to dismiss the mobile browser toolbar
-      // (Copy/Share/Select all). Our app stores the selection data above.
-      requestAnimationFrame(() => {
-        window.getSelection()?.removeAllRanges();
-      });
     } else {
       // Fallback: no valid offsets computed
       const text = selection.toString().trim();
@@ -126,21 +117,30 @@ export function useTextSelection(
         highlightStart: -1,
         highlightEnd: -1,
       });
-
-      // Clear native selection to dismiss the mobile browser toolbar
-      requestAnimationFrame(() => {
-        window.getSelection()?.removeAllRanges();
-      });
     }
+
+    // Immediately clear native selection to dismiss Android Chrome's
+    // action toolbar (Copy/Share/Select all). Our app stores the
+    // selection data in state above, so the native selection is no
+    // longer needed.
+    selection.removeAllRanges();
   }, [chatMessages, threads]);
 
   useEffect(() => {
-    document.addEventListener("mouseup", handleSelectionChange);
-    // Use a short delay on touchend so the selection is fully resolved before we read it
-    const handleTouchEnd = () => {
-      setTimeout(handleSelectionChange, 10);
+    // On desktop, process on mouseup
+    document.addEventListener("mouseup", processSelection);
+
+    // On mobile, use selectionchange for faster response — the native
+    // toolbar appears as soon as selection is created, so we need to
+    // intercept it via selectionchange rather than waiting for touchend.
+    let selectionTimeout: ReturnType<typeof setTimeout> | null = null;
+    const handleSelectionChange = () => {
+      // Debounce: selectionchange fires many times during drag-to-select.
+      // Process once the user stops adjusting (80ms after last change).
+      if (selectionTimeout) clearTimeout(selectionTimeout);
+      selectionTimeout = setTimeout(processSelection, 80);
     };
-    document.addEventListener("touchend", handleTouchEnd);
+    document.addEventListener("selectionchange", handleSelectionChange);
 
     // Prevent native context menu on message bubbles to avoid competing with app toolbar
     const preventContextMenu = (e: Event) => {
@@ -152,11 +152,12 @@ export function useTextSelection(
     document.addEventListener("contextmenu", preventContextMenu);
 
     return () => {
-      document.removeEventListener("mouseup", handleSelectionChange);
-      document.removeEventListener("touchend", handleTouchEnd);
+      document.removeEventListener("mouseup", processSelection);
+      document.removeEventListener("selectionchange", handleSelectionChange);
       document.removeEventListener("contextmenu", preventContextMenu);
+      if (selectionTimeout) clearTimeout(selectionTimeout);
     };
-  }, [handleSelectionChange]);
+  }, [processSelection]);
 
   const closeToolbar = useCallback(() => {
     setToolbar(null);
