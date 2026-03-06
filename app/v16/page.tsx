@@ -26,6 +26,7 @@ interface GhostBranch {
 interface BranchThread {
   id: string;
   parentMessageId: string;
+  parentThreadId: string | null;
   highlightedText: string;
   action: "branch" | "challenge" | "define" | "connect";
   messages: ChatMessage[];
@@ -39,6 +40,7 @@ interface SelectionToolbar {
   y: number;
   text: string;
   messageId: string;
+  threadId: string | null;
 }
 
 function formatTime(ts: string) {
@@ -197,154 +199,107 @@ function ThreadTypingIndicator() {
   );
 }
 
+// ── Thread Breadcrumb ──
+
+function ThreadBreadcrumb({
+  focusStack,
+  threads,
+  onNavigate,
+}: {
+  focusStack: string[];
+  threads: BranchThread[];
+  onNavigate: (depth: number) => void;
+}) {
+  if (focusStack.length === 0) return null;
+
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: -10 }}
+      animate={{ opacity: 1, y: 0 }}
+      exit={{ opacity: 0, y: -10 }}
+      className="sticky top-[52px] z-30 bg-[#1f2c34]/95 backdrop-blur border-b border-zinc-800 px-3 py-2"
+    >
+      <div className="max-w-lg mx-auto flex items-center gap-1.5 overflow-x-auto scrollbar-hide">
+        <button
+          onClick={() => onNavigate(-1)}
+          className="flex items-center gap-1 text-[12px] text-emerald-400 hover:text-emerald-300 flex-shrink-0 transition-colors"
+        >
+          <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+          </svg>
+          Main
+        </button>
+        {focusStack.map((threadId, i) => {
+          const thread = threads.find((t) => t.id === threadId);
+          if (!thread) return null;
+          const isLast = i === focusStack.length - 1;
+          return (
+            <div key={threadId} className="flex items-center gap-1.5 min-w-0">
+              <span className="text-zinc-600 text-[11px] flex-shrink-0">&gt;</span>
+              <button
+                onClick={() => !isLast && onNavigate(i)}
+                className={`text-[11px] truncate max-w-[120px] transition-colors ${
+                  isLast
+                    ? "text-zinc-200 font-medium"
+                    : "text-emerald-400 hover:text-emerald-300"
+                }`}
+              >
+                &ldquo;{thread.highlightedText.slice(0, 24)}{thread.highlightedText.length > 24 ? "..." : ""}&rdquo;
+              </button>
+            </div>
+          );
+        })}
+      </div>
+    </motion.div>
+  );
+}
+
 // ── Branch Thread Inline Component ──
 
-function BranchThreadInline({
+function BranchThreadPill({
   thread,
-  onToggle,
-  onSendMessage,
-  loadingContext,
+  onFocus,
 }: {
   thread: BranchThread;
-  onToggle: (threadId: string) => void;
-  onSendMessage: (threadId: string, content: string) => void;
-  loadingContext: string | null;
+  onFocus: (threadId: string) => void;
 }) {
-  const [threadInput, setThreadInput] = useState("");
-  const threadInputRef = useRef<HTMLInputElement>(null);
-  const isThreadLoading = loadingContext === thread.id;
-
   const actionColors: Record<string, { border: string; bg: string; accent: string }> = {
     branch: { border: "border-emerald-500/40", bg: "bg-emerald-500/5", accent: "text-emerald-400" },
     challenge: { border: "border-red-500/40", bg: "bg-red-500/5", accent: "text-red-400" },
     define: { border: "border-blue-500/40", bg: "bg-blue-500/5", accent: "text-blue-400" },
     connect: { border: "border-amber-500/40", bg: "bg-amber-500/5", accent: "text-amber-400" },
   };
-  const actionLabels: Record<string, string> = {
-    branch: "Branched from",
-    challenge: "Challenge to",
-    define: "Defining",
-    connect: "Connected to",
-  };
 
   const colors = actionColors[thread.action];
   const lastMsg = thread.messages[thread.messages.length - 1];
 
-  const handleThreadSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!threadInput.trim() || isThreadLoading) return;
-    onSendMessage(thread.id, threadInput.trim());
-    setThreadInput("");
-  };
-
-  // Collapsed pill
-  if (thread.isCollapsed) {
-    return (
-      <motion.button
-        initial={{ opacity: 0, scale: 0.95 }}
-        animate={{ opacity: 1, scale: 1 }}
-        onClick={() => onToggle(thread.id)}
-        className={`flex items-center gap-2 mx-5 my-1.5 px-3 py-1.5 rounded-full border ${colors.border} ${colors.bg} hover:bg-[#1f2c34]/60 transition-colors text-left w-fit max-w-[90%]`}
-      >
-        <span className={`text-[11px] ${colors.accent}`}>⑂</span>
-        <span className="text-[11px] text-zinc-400 truncate">
-          &ldquo;{thread.highlightedText.slice(0, 30)}{thread.highlightedText.length > 30 ? "..." : ""}&rdquo;
-        </span>
-        {thread.messages.length > 0 && (
-          <>
-            <span className="text-[10px] text-zinc-600">·</span>
-            <span className="text-[10px] text-zinc-500">{thread.messages.length} {thread.messages.length === 1 ? "reply" : "replies"}</span>
-          </>
-        )}
-        {lastMsg && (
-          <>
-            <span className="text-[10px] text-zinc-600">·</span>
-            <span className="text-[10px] text-zinc-500 truncate max-w-[120px]">{lastMsg.content.slice(0, 40)}</span>
-          </>
-        )}
-        <svg className="w-3 h-3 text-zinc-500 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-        </svg>
-      </motion.button>
-    );
-  }
-
-  // Expanded thread
   return (
-    <motion.div
-      initial={{ opacity: 0, height: 0 }}
-      animate={{ opacity: 1, height: "auto" }}
-      exit={{ opacity: 0, height: 0 }}
-      className={`mx-5 my-2 rounded-xl border-l-2 ${colors.border} ${colors.bg} overflow-hidden`}
+    <motion.button
+      initial={{ opacity: 0, scale: 0.95 }}
+      animate={{ opacity: 1, scale: 1 }}
+      onClick={() => onFocus(thread.id)}
+      className={`flex items-center gap-2 mx-5 my-1.5 px-3 py-1.5 rounded-full border ${colors.border} ${colors.bg} hover:bg-[#1f2c34]/60 transition-colors text-left w-fit max-w-[90%]`}
     >
-      {/* Header */}
-      <div className="flex items-center justify-between px-3 pt-2 pb-1">
-        <div className="flex items-center gap-2 min-w-0">
-          <span className={`text-[10px] font-mono uppercase tracking-wider ${colors.accent}`}>
-            {actionLabels[thread.action]}
-          </span>
-          <span className="text-[11px] text-zinc-400 italic truncate">
-            &ldquo;{thread.highlightedText.slice(0, 40)}{thread.highlightedText.length > 40 ? "..." : ""}&rdquo;
-          </span>
-        </div>
-        <button
-          onClick={() => onToggle(thread.id)}
-          className="text-zinc-500 hover:text-zinc-300 text-[12px] px-1.5 py-0.5 rounded hover:bg-[#2a3942]/50 transition-colors flex-shrink-0"
-        >
-          Collapse
-        </button>
-      </div>
-
-      {/* Thread messages */}
-      <div className="px-3 py-1 space-y-1.5">
-        {thread.messages.map((msg) => (
-          <div
-            key={msg.id}
-            className={`flex ${msg.role === "user" ? "justify-end" : "justify-start"}`}
-          >
-            <div
-              className={`max-w-[85%] rounded-lg px-2.5 py-1.5 ${
-                msg.role === "user"
-                  ? "bg-emerald-800/80 text-white"
-                  : "bg-[#1f2c34]/80 text-zinc-200"
-              }`}
-            >
-              {msg.role === "assistant" && (
-                <p className="text-[9px] font-semibold text-emerald-400 mb-0.5">Suz</p>
-              )}
-              <div className="text-[13px] leading-relaxed prose prose-invert max-w-none prose-p:my-0.5">
-                <Markdown>{msg.content}</Markdown>
-              </div>
-              <p className="text-[9px] opacity-40 text-right mt-0.5">{formatTime(msg.timestamp)}</p>
-            </div>
-          </div>
-        ))}
-
-        {isThreadLoading && <ThreadTypingIndicator />}
-      </div>
-
-      {/* Thread composer */}
-      <form onSubmit={handleThreadSubmit} className="flex items-center gap-2 px-3 py-2 border-t border-zinc-700/30">
-        <input
-          ref={threadInputRef}
-          type="text"
-          value={threadInput}
-          onChange={(e) => setThreadInput(e.target.value)}
-          placeholder="Reply in thread..."
-          disabled={isThreadLoading}
-          className="flex-1 bg-[#2a3942]/60 rounded-full px-3 py-1.5 text-[12px] text-zinc-100 placeholder:text-zinc-500 outline-none focus:ring-1 focus:ring-emerald-500/30 disabled:opacity-50"
-        />
-        <button
-          type="submit"
-          disabled={!threadInput.trim() || isThreadLoading}
-          className="w-6 h-6 rounded-full bg-emerald-600 flex items-center justify-center flex-shrink-0 disabled:opacity-30 transition-opacity"
-        >
-          <svg className="w-3 h-3 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 12h14M12 5l7 7-7 7" />
-          </svg>
-        </button>
-      </form>
-    </motion.div>
+      <span className={`text-[11px] ${colors.accent}`}>⑂</span>
+      <span className="text-[11px] text-zinc-400 truncate">
+        &ldquo;{thread.highlightedText.slice(0, 30)}{thread.highlightedText.length > 30 ? "..." : ""}&rdquo;
+      </span>
+      {thread.messages.length > 0 && (
+        <>
+          <span className="text-[10px] text-zinc-600">·</span>
+          <span className="text-[10px] text-zinc-500">{thread.messages.length} {thread.messages.length === 1 ? "reply" : "replies"}</span>
+        </>
+      )}
+      {lastMsg && (
+        <>
+          <span className="text-[10px] text-zinc-600">·</span>
+          <span className="text-[10px] text-zinc-500 truncate max-w-[120px]">{lastMsg.content.slice(0, 40)}</span>
+        </>
+      )}
+      <svg className="w-3 h-3 text-zinc-500 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+      </svg>
+    </motion.button>
   );
 }
 
@@ -797,9 +752,12 @@ export default function V16Page() {
   const [toolbar, setToolbar] = useState<SelectionToolbar | null>(null);
   const [replyTo, setReplyTo] = useState<ChatMessage | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [focusStack, setFocusStack] = useState<string[]>([]);
 
   const isMainLoading = loadingContext === "main";
   const activeGhostCount = ghosts.filter((g) => !dismissedGhosts.has(g.id)).length;
+  const currentFocusedThreadId = focusStack.length > 0 ? focusStack[focusStack.length - 1] : null;
+  const currentFocusedThread = currentFocusedThreadId ? threads.find((t) => t.id === currentFocusedThreadId) ?? null : null;
 
   // Auto-scroll
   useEffect(() => {
@@ -884,6 +842,36 @@ export default function V16Page() {
     [chatMessages, isMainLoading, replyTo, fetchGhosts]
   );
 
+  // Build ancestry context chain for a thread (recursive)
+  const buildThreadContext = useCallback(
+    (thread: BranchThread): { role: "user" | "assistant"; content: string }[] => {
+      const context: { role: "user" | "assistant"; content: string }[] = [];
+
+      if (thread.parentThreadId) {
+        const parentThread = threads.find((t) => t.id === thread.parentThreadId);
+        if (parentThread) {
+          context.push(...buildThreadContext(parentThread));
+          context.push({
+            role: "user",
+            content: `[Within this sub-thread, we're now exploring: "${thread.highlightedText}"]`,
+          });
+        }
+      } else {
+        const parentMsgIndex = chatMessages.findIndex((m) => m.id === thread.parentMessageId);
+        const mainContext = chatMessages.slice(0, parentMsgIndex + 1);
+        context.push(...mainContext.map((m) => ({ role: m.role, content: m.content })));
+        context.push({
+          role: "user",
+          content: `[We're exploring a sub-thread about: "${thread.highlightedText}"]`,
+        });
+      }
+
+      context.push(...thread.messages.map((m) => ({ role: m.role, content: m.content })));
+      return context;
+    },
+    [threads, chatMessages]
+  );
+
   // Send thread message
   const sendThreadMessage = useCallback(
     async (threadId: string, content: string) => {
@@ -904,28 +892,17 @@ export default function V16Page() {
       );
       setLoadingContext(threadId);
 
-      const parentMsgIndex = chatMessages.findIndex((m) => m.id === thread.parentMessageId);
-      const contextMessages = chatMessages.slice(0, parentMsgIndex + 1);
-      const framingMessage = {
-        role: "user" as const,
-        content: `[We're exploring a sub-thread about: "${thread.highlightedText}"]`,
-      };
-      const threadMsgs = [...thread.messages, userMsg].map((m) => ({
-        role: m.role,
-        content: m.content,
-      }));
+      const ancestryContext = buildThreadContext(thread);
+      const allContextMessages = [
+        ...ancestryContext,
+        { role: "user" as const, content: content.trim() },
+      ];
 
       try {
         const res = await fetch("/api/chat", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            messages: [
-              ...contextMessages.map((m) => ({ role: m.role, content: m.content })),
-              framingMessage,
-              ...threadMsgs,
-            ],
-          }),
+          body: JSON.stringify({ messages: allContextMessages }),
         });
 
         const data = await res.json();
@@ -954,43 +931,40 @@ export default function V16Page() {
         setLoadingContext(null);
       }
     },
-    [threads, chatMessages, loadingContext]
+    [threads, chatMessages, loadingContext, buildThreadContext]
   );
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    sendMessage(inputValue);
+    if (currentFocusedThreadId) {
+      sendThreadMessage(currentFocusedThreadId, inputValue);
+      setInputValue("");
+    } else {
+      sendMessage(inputValue);
+    }
   };
 
-  // Materialize ghost → create thread
+  // Materialize ghost → create thread and enter focus mode
   const handleMaterializeGhost = (ghost: GhostBranch) => {
     setDismissedGhosts((prev) => new Set(prev).add(ghost.id));
 
     const newThread: BranchThread = {
       id: `bt-${Date.now()}`,
       parentMessageId: ghost.afterMessageId,
+      parentThreadId: currentFocusedThreadId,
       highlightedText: ghost.suggestion,
       action: "branch",
       messages: [],
-      isCollapsed: false,
+      isCollapsed: true,
       sourceType: "ghost",
       createdAt: new Date().toISOString(),
     };
     setThreads((prev) => [...prev, newThread]);
 
+    setFocusStack((prev) => [...prev, newThread.id]);
     setTimeout(() => {
-      const threadInput = document.querySelector(
-        `[data-thread-id="${newThread.id}"] input`
-      ) as HTMLInputElement;
-      if (threadInput) {
-        const nativeSetter = Object.getOwnPropertyDescriptor(
-          window.HTMLInputElement.prototype,
-          "value"
-        )?.set;
-        nativeSetter?.call(threadInput, ghost.suggestion);
-        threadInput.dispatchEvent(new Event("input", { bubbles: true }));
-        threadInput.focus();
-      }
+      setInputValue(ghost.suggestion);
+      inputRef.current?.focus();
     }, 100);
   };
 
@@ -1006,16 +980,21 @@ export default function V16Page() {
 
     let node: Node | null = range.startContainer;
     let messageId: string | null = null;
+    let threadId: string | null = null;
     while (node) {
-      if (node instanceof HTMLElement && node.dataset.messageId) {
-        messageId = node.dataset.messageId;
-        break;
+      if (node instanceof HTMLElement) {
+        if (!messageId && node.dataset.messageId) {
+          messageId = node.dataset.messageId;
+        }
+        if (!threadId && node.dataset.threadId) {
+          threadId = node.dataset.threadId;
+        }
       }
       node = node.parentNode;
     }
 
     if (messageId) {
-      setToolbar({ x: rect.left + rect.width / 2, y: rect.top, text, messageId });
+      setToolbar({ x: rect.left + rect.width / 2, y: rect.top, text, messageId, threadId });
     }
   }, []);
 
@@ -1025,13 +1004,15 @@ export default function V16Page() {
   }, [handleSelectionChange]);
 
   const handleBranchAction = (action: BranchThread["action"], text: string, messageId: string) => {
+    const threadId = toolbar?.threadId ?? currentFocusedThreadId;
     const newThread: BranchThread = {
       id: `bt-${Date.now()}`,
       parentMessageId: messageId,
+      parentThreadId: threadId,
       highlightedText: text,
       action,
       messages: [],
-      isCollapsed: false,
+      isCollapsed: true,
       sourceType: "highlight",
       createdAt: new Date().toISOString(),
     };
@@ -1039,39 +1020,41 @@ export default function V16Page() {
     setToolbar(null);
     window.getSelection()?.removeAllRanges();
 
+    setFocusStack((prev) => [...prev, newThread.id]);
+
     if (action === "challenge" || action === "define") {
       const prefill = action === "challenge"
         ? `I'd push back on "${text}" because `
         : `When we say "${text}", I think we mean `;
 
       setTimeout(() => {
-        const threadInput = document.querySelector(
-          `[data-thread-id="${newThread.id}"] input`
-        ) as HTMLInputElement;
-        if (threadInput) {
-          const nativeSetter = Object.getOwnPropertyDescriptor(
-            window.HTMLInputElement.prototype,
-            "value"
-          )?.set;
-          nativeSetter?.call(threadInput, prefill);
-          threadInput.dispatchEvent(new Event("input", { bubbles: true }));
-          threadInput.focus();
-        }
+        setInputValue(prefill);
+        inputRef.current?.focus();
       }, 100);
     }
   };
 
-  const toggleThread = (threadId: string) => {
-    setThreads((prev) =>
-      prev.map((t) => (t.id === threadId ? { ...t, isCollapsed: !t.isCollapsed } : t))
-    );
+  // Focus navigation
+  const focusThread = (threadId: string) => {
+    setFocusStack((prev) => [...prev, threadId]);
+  };
+
+  const navigateBreadcrumb = (depth: number) => {
+    if (depth === -1) {
+      setFocusStack([]);
+    } else {
+      setFocusStack((prev) => prev.slice(0, depth + 1));
+    }
   };
 
   const getGhostsAfter = (messageId: string) =>
     ghosts.filter((g) => g.afterMessageId === messageId && !dismissedGhosts.has(g.id));
 
-  const getThreadsForMessage = (messageId: string) =>
-    threads.filter((t) => t.parentMessageId === messageId);
+  const getThreadsForMessage = (messageId: string, parentThreadId: string | null) =>
+    threads.filter((t) => t.parentMessageId === messageId && t.parentThreadId === parentThreadId);
+
+  const getChildThreads = (parentId: string) =>
+    threads.filter((t) => t.parentThreadId === parentId);
 
   return (
     <div className="flex flex-col min-h-dvh bg-[#0b141a]">
@@ -1129,75 +1112,165 @@ export default function V16Page() {
         </div>
       </header>
 
+      {/* Breadcrumb */}
+      <AnimatePresence>
+        {focusStack.length > 0 && (
+          <ThreadBreadcrumb
+            focusStack={focusStack}
+            threads={threads}
+            onNavigate={navigateBreadcrumb}
+          />
+        )}
+      </AnimatePresence>
+
       {/* Messages */}
       <main ref={scrollRef} className="flex-1 overflow-y-auto pb-20 relative z-10">
-        {chatMessages.length === 0 && (
-          <div className="px-6 py-16 text-center">
-            <div className="w-16 h-16 rounded-full bg-emerald-600/20 flex items-center justify-center mx-auto mb-4">
-              <span className="text-2xl">💬</span>
-            </div>
-            <p className="text-[14px] text-zinc-300 mb-1">Start a conversation with Suz</p>
-            <p className="text-[11px] text-zinc-600 max-w-[250px] mx-auto">
-              Select text to branch, challenge, or define. Ghost branches appear as the conversation develops.
-            </p>
-          </div>
-        )}
+        <AnimatePresence mode="wait">
+          {currentFocusedThread ? (
+            /* ── Focused Thread View ── */
+            <motion.div
+              key={currentFocusedThreadId}
+              initial={{ opacity: 0, x: 60 }}
+              animate={{ opacity: 1, x: 0 }}
+              exit={{ opacity: 0, x: -60 }}
+              transition={{ type: "spring", damping: 25, stiffness: 250 }}
+              data-thread-id={currentFocusedThreadId}
+            >
+              {/* Thread header */}
+              <div className="flex items-center gap-2 px-5 py-3">
+                <span className={`text-[10px] font-mono uppercase tracking-wider ${
+                  { branch: "text-emerald-400", challenge: "text-red-400", define: "text-blue-400", connect: "text-amber-400" }[currentFocusedThread.action]
+                }`}>
+                  {{ branch: "Branched from", challenge: "Challenge to", define: "Defining", connect: "Connected to" }[currentFocusedThread.action]}
+                </span>
+                <span className="text-[12px] text-zinc-400 italic truncate">
+                  &ldquo;{currentFocusedThread.highlightedText.slice(0, 50)}{currentFocusedThread.highlightedText.length > 50 ? "..." : ""}&rdquo;
+                </span>
+              </div>
 
-        {chatMessages.length > 0 && (
-          <div className="flex justify-center py-3">
-            <span className="text-[11px] bg-[#1f2c34] text-zinc-400 px-3 py-1 rounded-lg">Today</span>
-          </div>
-        )}
+              {/* Thread messages as full-size bubbles */}
+              {currentFocusedThread.messages.map((msg, i) => {
+                const isMe = msg.role === "user";
+                const prev = i > 0 ? currentFocusedThread.messages[i - 1] : null;
+                const showTail = !prev || prev.role !== msg.role;
+                const childThreads = getThreadsForMessage(msg.id, currentFocusedThreadId);
 
-        {chatMessages.map((msg, i) => {
-          const isMe = msg.role === "user";
-          const prev = i > 0 ? chatMessages[i - 1] : null;
-          const showTail = !prev || prev.role !== msg.role;
-          const messageThreads = getThreadsForMessage(msg.id);
-          const messageGhosts = getGhostsAfter(msg.id);
-
-          return (
-            <div key={msg.id}>
-              <WhatsAppBubble
-                message={msg}
-                isMe={isMe}
-                showTail={showTail}
-                threads={messageThreads}
-                allMessages={chatMessages}
-                onSwipeReply={(m) => {
-                  setReplyTo(m);
-                  inputRef.current?.focus();
-                }}
-              />
-              {/* Inline branch threads */}
-              <AnimatePresence>
-                {messageThreads.map((t) => (
-                  <div key={t.id} data-thread-id={t.id}>
-                    <BranchThreadInline
-                      thread={t}
-                      onToggle={toggleThread}
-                      onSendMessage={sendThreadMessage}
-                      loadingContext={loadingContext === t.id ? t.id : null}
+                return (
+                  <div key={msg.id}>
+                    <WhatsAppBubble
+                      message={msg}
+                      isMe={isMe}
+                      showTail={showTail}
+                      threads={childThreads}
+                      allMessages={currentFocusedThread.messages}
+                      onSwipeReply={(m) => {
+                        setReplyTo(m);
+                        inputRef.current?.focus();
+                      }}
                     />
+                    {/* Child thread pills */}
+                    <AnimatePresence>
+                      {childThreads.map((t) => (
+                        <BranchThreadPill
+                          key={t.id}
+                          thread={t}
+                          onFocus={focusThread}
+                        />
+                      ))}
+                    </AnimatePresence>
                   </div>
-                ))}
-              </AnimatePresence>
-              {/* Ghost branches */}
-              <AnimatePresence>
-                {messageGhosts.map((ghost) => (
-                  <GhostBranchPill
-                    key={ghost.id}
-                    ghost={ghost}
-                    onMaterialize={handleMaterializeGhost}
-                    onDismiss={(id) => setDismissedGhosts((prev) => new Set(prev).add(id))}
-                  />
-                ))}
-              </AnimatePresence>
-            </div>
-          );
-        })}
+                );
+              })}
 
-        <AnimatePresence>{isMainLoading && <TypingIndicator />}</AnimatePresence>
+              <AnimatePresence>
+                {loadingContext === currentFocusedThreadId && <TypingIndicator />}
+              </AnimatePresence>
+
+              {currentFocusedThread.messages.length === 0 && (
+                <div className="px-6 py-8 text-center">
+                  <p className="text-[13px] text-zinc-400">Start exploring this thread</p>
+                  <p className="text-[11px] text-zinc-600 mt-1">
+                    Type below to continue the conversation. You can highlight text to branch deeper.
+                  </p>
+                </div>
+              )}
+            </motion.div>
+          ) : (
+            /* ── Main Thread View ── */
+            <motion.div
+              key="main"
+              initial={{ opacity: 0, x: -60 }}
+              animate={{ opacity: 1, x: 0 }}
+              exit={{ opacity: 0, x: 60 }}
+              transition={{ type: "spring", damping: 25, stiffness: 250 }}
+            >
+              {chatMessages.length === 0 && (
+                <div className="px-6 py-16 text-center">
+                  <div className="w-16 h-16 rounded-full bg-emerald-600/20 flex items-center justify-center mx-auto mb-4">
+                    <span className="text-2xl">💬</span>
+                  </div>
+                  <p className="text-[14px] text-zinc-300 mb-1">Start a conversation with Suz</p>
+                  <p className="text-[11px] text-zinc-600 max-w-[250px] mx-auto">
+                    Select text to branch, challenge, or define. Ghost branches appear as the conversation develops.
+                  </p>
+                </div>
+              )}
+
+              {chatMessages.length > 0 && (
+                <div className="flex justify-center py-3">
+                  <span className="text-[11px] bg-[#1f2c34] text-zinc-400 px-3 py-1 rounded-lg">Today</span>
+                </div>
+              )}
+
+              {chatMessages.map((msg, i) => {
+                const isMe = msg.role === "user";
+                const prev = i > 0 ? chatMessages[i - 1] : null;
+                const showTail = !prev || prev.role !== msg.role;
+                const messageThreads = getThreadsForMessage(msg.id, null);
+                const messageGhosts = getGhostsAfter(msg.id);
+
+                return (
+                  <div key={msg.id}>
+                    <WhatsAppBubble
+                      message={msg}
+                      isMe={isMe}
+                      showTail={showTail}
+                      threads={messageThreads}
+                      allMessages={chatMessages}
+                      onSwipeReply={(m) => {
+                        setReplyTo(m);
+                        inputRef.current?.focus();
+                      }}
+                    />
+                    {/* Thread pills */}
+                    <AnimatePresence>
+                      {messageThreads.map((t) => (
+                        <BranchThreadPill
+                          key={t.id}
+                          thread={t}
+                          onFocus={focusThread}
+                        />
+                      ))}
+                    </AnimatePresence>
+                    {/* Ghost branches */}
+                    <AnimatePresence>
+                      {messageGhosts.map((ghost) => (
+                        <GhostBranchPill
+                          key={ghost.id}
+                          ghost={ghost}
+                          onMaterialize={handleMaterializeGhost}
+                          onDismiss={(id) => setDismissedGhosts((prev) => new Set(prev).add(id))}
+                        />
+                      ))}
+                    </AnimatePresence>
+                  </div>
+                );
+              })}
+
+              <AnimatePresence>{isMainLoading && <TypingIndicator />}</AnimatePresence>
+            </motion.div>
+          )}
+        </AnimatePresence>
 
         {error && (
           <div className="mx-5 my-2 px-3 py-2 rounded-lg bg-red-500/10 border border-red-500/30 text-[12px] text-red-400">
@@ -1235,13 +1308,13 @@ export default function V16Page() {
             type="text"
             value={inputValue}
             onChange={(e) => setInputValue(e.target.value)}
-            placeholder={replyTo ? `Reply to ${replyTo.role === "user" ? "yourself" : "Suz"}...` : "Message"}
-            disabled={isMainLoading}
+            placeholder={replyTo ? `Reply to ${replyTo.role === "user" ? "yourself" : "Suz"}...` : currentFocusedThread ? "Reply in thread..." : "Message"}
+            disabled={currentFocusedThread ? loadingContext === currentFocusedThreadId : isMainLoading}
             className="flex-1 bg-[#2a3942] rounded-full px-4 py-2 text-sm text-zinc-100 placeholder:text-zinc-500 outline-none focus:ring-1 focus:ring-emerald-500/50 disabled:opacity-50"
           />
           <button
             type="submit"
-            disabled={!inputValue.trim() || isMainLoading}
+            disabled={!inputValue.trim() || (currentFocusedThread ? loadingContext === currentFocusedThreadId : isMainLoading)}
             className="w-10 h-10 rounded-full bg-emerald-600 flex items-center justify-center flex-shrink-0 disabled:opacity-30 transition-opacity"
           >
             <svg className="w-5 h-5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
