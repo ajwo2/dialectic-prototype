@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useRef, useEffect, useCallback } from "react";
-import { motion, AnimatePresence, PanInfo } from "framer-motion";
+import { motion, AnimatePresence } from "framer-motion";
 import Markdown from "react-markdown";
 import Link from "next/link";
 import { GHOST_CATEGORIES } from "@/lib/interaction-utils";
@@ -367,17 +367,39 @@ function IMBubble({
   allMessages: ChatMessage[];
   onSwipeReply: (message: ChatMessage) => void;
 }) {
-  const [dragX, setDragX] = useState(0);
+  const [swipeX, setSwipeX] = useState(0);
+  const touchStartX = useRef(0);
+  const touchStartY = useRef(0);
+  const isSwiping = useRef(false);
 
   const replyToMessage = message.replyToId
     ? allMessages.find((m) => m.id === message.replyToId)
     : null;
 
-  const handleDragEnd = (_: unknown, info: PanInfo) => {
-    if (info.offset.x > 60) {
+  const handleTouchStart = (e: React.TouchEvent) => {
+    touchStartX.current = e.touches[0].clientX;
+    touchStartY.current = e.touches[0].clientY;
+    isSwiping.current = false;
+  };
+
+  const handleTouchMove = (e: React.TouchEvent) => {
+    const dx = e.touches[0].clientX - touchStartX.current;
+    const dy = e.touches[0].clientY - touchStartY.current;
+    // Only activate horizontal swipe if mostly horizontal
+    if (!isSwiping.current && Math.abs(dx) > 10 && Math.abs(dx) > Math.abs(dy) * 1.5) {
+      isSwiping.current = true;
+    }
+    if (isSwiping.current && dx > 0) {
+      setSwipeX(Math.min(dx, 80));
+    }
+  };
+
+  const handleTouchEnd = () => {
+    if (swipeX > 60) {
       onSwipeReply(message);
     }
-    setDragX(0);
+    setSwipeX(0);
+    isSwiping.current = false;
   };
 
   return (
@@ -390,10 +412,10 @@ function IMBubble({
     >
       {/* Swipe reply indicator */}
       <AnimatePresence>
-        {dragX > 20 && (
+        {swipeX > 20 && (
           <motion.div
             initial={{ opacity: 0, scale: 0.5 }}
-            animate={{ opacity: Math.min(dragX / 80, 1), scale: Math.min(0.5 + dragX / 160, 1) }}
+            animate={{ opacity: Math.min(swipeX / 80, 1), scale: Math.min(0.5 + swipeX / 160, 1) }}
             exit={{ opacity: 0, scale: 0.5 }}
             className="absolute left-2 top-1/2 -translate-y-1/2 w-7 h-7 rounded-full bg-zinc-700 flex items-center justify-center z-10"
           >
@@ -404,14 +426,12 @@ function IMBubble({
         )}
       </AnimatePresence>
 
-      <motion.div
+      <div
         className="relative max-w-[80%]"
-        drag="x"
-        dragConstraints={{ left: 0, right: 80 }}
-        dragElastic={0.3}
-        dragSnapToOrigin
-        onDrag={(_, info) => setDragX(Math.max(0, info.offset.x))}
-        onDragEnd={handleDragEnd}
+        style={{ transform: `translateX(${swipeX}px)`, transition: swipeX === 0 ? 'transform 0.2s ease-out' : 'none' }}
+        onTouchStart={handleTouchStart}
+        onTouchMove={handleTouchMove}
+        onTouchEnd={handleTouchEnd}
       >
         <div
           className={`relative rounded-2xl px-3 py-2 ${
@@ -471,7 +491,7 @@ function IMBubble({
             <span className="text-[10px] text-zinc-600">{formatTime(message.timestamp)}</span>
           </div>
         )}
-      </motion.div>
+      </div>
     </motion.div>
   );
 }
