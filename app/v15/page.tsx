@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useRef, useEffect, useCallback } from "react";
+import { useState, useRef, useEffect, useCallback, Children, isValidElement, cloneElement, ReactNode } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import Markdown from "react-markdown";
 import Link from "next/link";
@@ -57,6 +57,70 @@ function formatRelativeTime(ts: string): string {
   const days = Math.floor(hours / 24);
   if (days === 1) return "yesterday";
   return `${days}d`;
+}
+
+// ── Action Highlight Colors ──
+
+const ACTION_HIGHLIGHT_COLORS: Record<BranchThread["action"], { bg: string; pill: string }> = {
+  branch: { bg: "bg-amber-500/20", pill: "bg-amber-500/10 text-amber-400 border-amber-500/20" },
+  challenge: { bg: "bg-red-500/20", pill: "bg-red-500/10 text-red-400 border-red-500/20" },
+  define: { bg: "bg-blue-500/20", pill: "bg-blue-500/10 text-blue-400 border-blue-500/20" },
+  connect: { bg: "bg-green-500/20", pill: "bg-green-500/10 text-green-400 border-green-500/20" },
+};
+
+interface HighlightEntry {
+  text: string;
+  color: string;
+}
+
+function highlightTextNode(text: string, highlights: HighlightEntry[]): ReactNode {
+  if (highlights.length === 0) return text;
+
+  // Find all match ranges
+  const ranges: { start: number; end: number; color: string }[] = [];
+  for (const h of highlights) {
+    let searchFrom = 0;
+    while (true) {
+      const idx = text.indexOf(h.text, searchFrom);
+      if (idx === -1) break;
+      ranges.push({ start: idx, end: idx + h.text.length, color: h.color });
+      searchFrom = idx + h.text.length;
+    }
+  }
+  if (ranges.length === 0) return text;
+
+  // Sort by start position, resolve overlaps (first-match-wins)
+  ranges.sort((a, b) => a.start - b.start);
+  const merged: typeof ranges = [];
+  for (const r of ranges) {
+    if (merged.length > 0 && r.start < merged[merged.length - 1].end) continue;
+    merged.push(r);
+  }
+
+  const parts: ReactNode[] = [];
+  let cursor = 0;
+  for (let i = 0; i < merged.length; i++) {
+    const { start, end, color } = merged[i];
+    if (cursor < start) parts.push(text.slice(cursor, start));
+    parts.push(
+      <span key={`hl-${i}`} className={`${color} rounded-sm px-0.5`}>
+        {text.slice(start, end)}
+      </span>
+    );
+    cursor = end;
+  }
+  if (cursor < text.length) parts.push(text.slice(cursor));
+  return <>{parts}</>;
+}
+
+function applyHighlights(children: ReactNode, highlights: HighlightEntry[]): ReactNode {
+  return Children.map(children, (child) => {
+    if (typeof child === "string") return highlightTextNode(child, highlights);
+    if (isValidElement<{ children?: ReactNode }>(child) && child.props.children) {
+      return cloneElement(child, {}, applyHighlights(child.props.children, highlights));
+    }
+    return child;
+  });
 }
 
 // ── Ghost Branch Pill ──
@@ -604,7 +668,18 @@ function IMBubble({
                 : "prose-invert prose-p:my-0.5 prose-blockquote:border-zinc-500 prose-strong:text-zinc-100"
             }`}
           >
-            <Markdown>{message.content}</Markdown>
+            <Markdown components={(() => {
+              const highlights = threads
+                .filter(t => t.highlightedText.length > 0)
+                .map(t => ({ text: t.highlightedText, color: ACTION_HIGHLIGHT_COLORS[t.action].bg }));
+              if (highlights.length === 0) return undefined;
+              // eslint-disable-next-line @typescript-eslint/no-explicit-any
+              const wrap = (Tag: string) => ({ children, node, ...rest }: any) => {
+                const El = Tag as unknown as React.ElementType;
+                return <El {...rest}>{applyHighlights(children as ReactNode, highlights)}</El>;
+              };
+              return { p: wrap("p"), li: wrap("li"), strong: wrap("strong"), em: wrap("em") };
+            })()}>{message.content}</Markdown>
           </div>
         </div>
 
@@ -614,7 +689,7 @@ function IMBubble({
             {threads.map((t) => (
               <span
                 key={t.id}
-                className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[9px] bg-amber-500/10 text-amber-400 border border-amber-500/20"
+                className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[9px] border ${ACTION_HIGHLIGHT_COLORS[t.action].pill}`}
               >
                 ⑂ {t.highlightedText.slice(0, 20)}...
                 {t.messages.length > 0 && (
