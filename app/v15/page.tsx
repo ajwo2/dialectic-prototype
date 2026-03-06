@@ -1018,7 +1018,13 @@ export default function V15Page() {
 
   useEffect(() => {
     document.addEventListener("selectionchange", handleSelectionChange);
-    return () => document.removeEventListener("selectionchange", handleSelectionChange);
+    document.addEventListener("mouseup", handleSelectionChange);
+    document.addEventListener("touchend", handleSelectionChange);
+    return () => {
+      document.removeEventListener("selectionchange", handleSelectionChange);
+      document.removeEventListener("mouseup", handleSelectionChange);
+      document.removeEventListener("touchend", handleSelectionChange);
+    };
   }, [handleSelectionChange]);
 
   const handleBranchAction = (action: BranchThread["action"], text: string, messageId: string) => {
