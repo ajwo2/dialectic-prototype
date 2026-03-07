@@ -209,8 +209,8 @@ export default function V15Page() {
         onDismissReferences={refs.dismiss}
         pendingAttachments={pendingAttachments}
         onRemoveAttachment={(id) => setPendingAttachments((prev) => prev.filter((a) => a.id !== id))}
-        aiEnabled={refs.enabled}
-        onToggleAi={refs.toggle}
+        onFetchReferences={refs.triggerFetch}
+        refsLoading={refs.loading}
       />
     </div>
   );

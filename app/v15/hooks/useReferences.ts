@@ -29,7 +29,6 @@ export function useReferences(
   const [enabled, setEnabled] = useState(true);
 
   const lastFetchedDraft = useRef("");
-  const debounceTimer = useRef<ReturnType<typeof setTimeout>>(undefined);
   const abortController = useRef<AbortController>(undefined);
 
   const fetchReferences = useCallback(
@@ -98,22 +97,12 @@ export function useReferences(
     [chatMessages],
   );
 
-  // Debounced fetch on input change
-  useEffect(() => {
-    if (debounceTimer.current) clearTimeout(debounceTimer.current);
-
-    if (!enabled || inputValue.trim().length < 30) {
-      return;
-    }
-
-    debounceTimer.current = setTimeout(() => {
-      fetchReferences(inputValue);
-    }, 1500);
-
-    return () => {
-      if (debounceTimer.current) clearTimeout(debounceTimer.current);
-    };
-  }, [inputValue, enabled, fetchReferences]);
+  // Manual trigger — called explicitly by the user via button
+  const triggerFetch = useCallback(() => {
+    if (inputValue.trim().length < 10) return;
+    lastFetchedDraft.current = ""; // Reset dedup so it always fetches
+    fetchReferences(inputValue);
+  }, [inputValue, fetchReferences]);
 
   // Clear when thread changes
   useEffect(() => {
@@ -148,5 +137,6 @@ export function useReferences(
     toggle,
     clearReferences,
     dismiss,
+    triggerFetch,
   };
 }

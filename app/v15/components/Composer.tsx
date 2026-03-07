@@ -20,8 +20,8 @@ export function Composer({
   onDismissReferences,
   pendingAttachments,
   onRemoveAttachment,
-  aiEnabled,
-  onToggleAi,
+  onFetchReferences,
+  refsLoading,
 }: {
   inputRef: React.RefObject<HTMLInputElement | null>;
   inputValue: string;
@@ -36,8 +36,8 @@ export function Composer({
   onDismissReferences: () => void;
   pendingAttachments: MessageAttachment[];
   onRemoveAttachment: (id: string) => void;
-  aiEnabled: boolean;
-  onToggleAi: () => void;
+  onFetchReferences: () => void;
+  refsLoading: boolean;
 }) {
   return (
     <div className="fixed bottom-0 left-0 right-0 z-20 bg-zinc-900/95 backdrop-blur border-t border-zinc-800">
@@ -75,24 +75,22 @@ export function Composer({
 
       <form onSubmit={onSubmit} className="max-w-lg mx-auto flex items-center gap-2 px-3 py-2">
         <div className="flex-1 flex items-center bg-zinc-800 rounded-full px-1 focus-within:ring-1 focus-within:ring-blue-500/50">
-          {/* AI toggle button inside the input bubble */}
+          {/* AI references fetch button */}
           <button
             type="button"
-            onClick={onToggleAi}
+            onClick={onFetchReferences}
+            disabled={refsLoading || !inputValue.trim()}
             className={`w-7 h-7 rounded-full flex items-center justify-center flex-shrink-0 transition-all ${
-              aiEnabled
-                ? "bg-blue-500/20 text-blue-400"
-                : "bg-transparent text-zinc-600 hover:text-zinc-400"
+              refsLoading
+                ? "bg-blue-500/20 text-blue-400 animate-pulse"
+                : "bg-transparent text-zinc-500 hover:text-blue-400 hover:bg-blue-500/10 disabled:opacity-30 disabled:hover:bg-transparent disabled:hover:text-zinc-500"
             }`}
-            title={aiEnabled ? "AI references on" : "AI references off"}
+            title="Find references"
           >
             <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
-              <path d="M12 2a4 4 0 0 1 4 4c0 1.5-.8 2.8-2 3.4V11h3a3 3 0 0 1 3 3v1" />
-              <path d="M6 11h3V9.4A4 4 0 0 1 12 2" />
-              <path d="M6 14a3 3 0 0 1 3-3" />
-              <circle cx="12" cy="18" r="3" />
-              <path d="M9 18H4" />
-              <path d="M20 18h-5" />
+              <path d="M4 19.5v-15A2.5 2.5 0 0 1 6.5 2H20v20H6.5a2.5 2.5 0 0 1 0-5H20" />
+              <path d="M8 7h6" />
+              <path d="M8 11h4" />
             </svg>
           </button>
           <input

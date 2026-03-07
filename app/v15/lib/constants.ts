@@ -1,7 +1,7 @@
 import type { BranchThread } from "./types";
 
-export const BUILD_VERSION = "v15.4.0";
-export const BUILD_TIMESTAMP = "2026-03-06 23:38";
+export const BUILD_VERSION = "v15.5.0";
+export const BUILD_TIMESTAMP = process.env.NEXT_PUBLIC_BUILD_TIMESTAMP || new Date().toISOString().replace("T", " ").slice(0, 16);
 
 export const ACTION_HIGHLIGHT_COLORS: Record<BranchThread["action"], { bg: string; pill: string }> = {
   branch: {
