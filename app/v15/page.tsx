@@ -137,7 +137,7 @@ export default function V15Page() {
       : `Message as ${identity.displayName}`;
 
   return (
-    <div className="flex flex-col min-h-dvh bg-zinc-950">
+    <div className="flex flex-col h-dvh bg-zinc-950 overflow-hidden">
       <ChatShell
         chatMessages={chat.chatMessages}
         threads={chat.threads}
@@ -192,7 +192,7 @@ export default function V15Page() {
 
       {/* Build watermark — z-30 to stay above Composer (z-20) */}
       <div className="fixed bottom-14 right-2 z-30 text-[9px] text-zinc-700 font-mono pointer-events-none select-none">
-        {BUILD_VERSION} · {BUILD_TIMESTAMP}
+        {BUILD_VERSION} · {new Date(BUILD_TIMESTAMP + "Z").toLocaleString(undefined, { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" })}
       </div>
 
       {/* Composer */}

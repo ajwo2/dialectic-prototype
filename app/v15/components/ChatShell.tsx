@@ -80,15 +80,14 @@ export function ChatShell({
     if (!el || chatMessages.length === 0) return;
 
     if (!hasScrolledInitially.current) {
-      // First time messages arrive — force to bottom at multiple timings
-      // to catch layout after Framer Motion animations resolve
+      // First load — snap to bottom instantly at multiple timings
+      // to ensure it works after Framer Motion animations resolve
       const snap = () => { el.scrollTop = el.scrollHeight; };
       snap();
       requestAnimationFrame(snap);
-      // After animation frames settle
-      setTimeout(snap, 50);
-      setTimeout(snap, 150);
+      setTimeout(snap, 100);
       setTimeout(snap, 300);
+      setTimeout(snap, 500);
       hasScrolledInitially.current = true;
       prevMessageCount.current = chatMessages.length;
       return;

@@ -119,11 +119,9 @@ export function useTextSelection(
       });
     }
 
-    // Immediately clear native selection to dismiss Android Chrome's
-    // action toolbar (Copy/Share/Select all). Our app stores the
-    // selection data in state above, so the native selection is no
-    // longer needed.
-    selection.removeAllRanges();
+    // Keep native selection visible so the user can see and adjust
+    // their selection. It will be cleared when the toolbar is dismissed
+    // or an action is taken.
   }, [chatMessages, threads]);
 
   useEffect(() => {
@@ -161,6 +159,7 @@ export function useTextSelection(
 
   const closeToolbar = useCallback(() => {
     setToolbar(null);
+    window.getSelection()?.removeAllRanges();
   }, []);
 
   return { toolbar, setToolbar, closeToolbar };
