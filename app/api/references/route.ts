@@ -63,7 +63,7 @@ export async function POST(req: NextRequest) {
     const userPrompt = `Recent conversation:\n${contextBlock}\n\nThe user is currently drafting this message:\n"${draft.trim()}"\n\nSuggest 1-3 real, citable references that are relevant to the point they're making.`;
 
     // Retry up to 2 times on overloaded errors, fallback to Sonnet if Haiku stays down
-    const models = ["claude-haiku-4-5-20251001", "claude-haiku-4-5-20251001", "claude-3-5-haiku-20241022"];
+    const models = ["claude-haiku-4-5-20251001", "claude-haiku-4-5-20251001", "claude-sonnet-4-5-20241022"];
     let response;
     for (let attempt = 0; attempt < models.length; attempt++) {
       try {
