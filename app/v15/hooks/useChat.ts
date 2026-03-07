@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useRef, useCallback, useEffect } from "react";
-import type { ChatMessage, BranchThread, GhostBranch } from "../lib/types";
+import type { ChatMessage, BranchThread, GhostBranch, MessageAttachment } from "../lib/types";
 import type { DbMessage, DbThread, DbGhost } from "../lib/db";
 import { debug } from "../lib/debugLogger";
 import type { UserId } from "./useIdentity";
@@ -64,6 +64,9 @@ export function useChat(userId: UserId | null) {
 
   const isMainLoading = loadingContext === "main";
 
+  // Client-side attachment storage (not persisted to DB)
+  const attachmentsMap = useRef<Map<string, MessageAttachment[]>>(new Map());
+
   // Ref to track latest counts for smart polling
   const stateRef = useRef({ messageCount: 0, threadCount: 0, ghostCount: 0 });
 
@@ -100,7 +103,12 @@ export function useChat(userId: UserId | null) {
       newCount.ghostCount !== stateRef.current.ghostCount
     ) {
       stateRef.current = newCount;
-      setChatMessages(mainMessages);
+      // Merge client-side attachments back into messages
+      const messagesWithAttachments = mainMessages.map((m) => {
+        const atts = attachmentsMap.current.get(m.id);
+        return atts ? { ...m, attachments: atts } : m;
+      });
+      setChatMessages(messagesWithAttachments);
       setThreads(hydratedThreads);
       setGhosts(hydratedGhosts);
     }
@@ -140,7 +148,7 @@ export function useChat(userId: UserId | null) {
   }, [userId, initialized, fetchState]);
 
   const postMessage = useCallback(
-    async (content: string) => {
+    async (content: string, attachments?: ChatMessage["attachments"]) => {
       if (!content.trim() || !userId) return;
 
       const messageId = `m-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`;
@@ -153,7 +161,12 @@ export function useChat(userId: UserId | null) {
         content: content.trim(),
         timestamp: new Date().toISOString(),
         replyToId: replyTo?.id,
+        attachments,
       };
+      // Store attachments client-side
+      if (attachments && attachments.length > 0) {
+        attachmentsMap.current.set(messageId, attachments);
+      }
       setChatMessages((prev) => [...prev, optimisticMsg]);
       setInputValue("");
       setReplyTo(null);

@@ -141,6 +141,39 @@ export function MessageBubble({
           </div>
         </div>
 
+        {/* Attached reference cards */}
+        {message.attachments && message.attachments.length > 0 && (
+          <div className={`flex flex-col gap-1.5 mt-1.5 ${isMe ? "items-end" : "items-start"}`}>
+            {message.attachments.map((att) => (
+              <a
+                key={att.id}
+                href={att.url}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="block w-full max-w-[280px] rounded-xl bg-zinc-800/90 border border-zinc-700/60 overflow-hidden hover:border-zinc-600 transition-colors"
+              >
+                <div className="px-3 py-2">
+                  <div className="flex items-center gap-1.5 mb-1">
+                    <span className="text-[9px] font-medium px-1.5 py-0.5 rounded bg-blue-500/10 text-blue-400 border border-blue-500/20">
+                      {att.type === "academic" ? "Paper" : att.type === "book" ? "Book" : att.type === "essay" ? "Essay" : "Concept"}
+                    </span>
+                    <span className="text-[10px] text-zinc-500 truncate">{att.label}</span>
+                  </div>
+                  <p className="text-[12px] font-medium text-zinc-200 leading-tight line-clamp-2">{att.title}</p>
+                  <p className="text-[11px] text-zinc-400 leading-tight mt-1 line-clamp-3">{att.argument}</p>
+                  <div className="flex items-center gap-1 mt-1.5">
+                    <svg className="w-3 h-3 text-zinc-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101" />
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M10.172 13.828a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.102 1.101" />
+                    </svg>
+                    <span className="text-[10px] text-blue-400 truncate">{att.url.replace(/^https?:\/\//, "").slice(0, 40)}</span>
+                  </div>
+                </div>
+              </a>
+            ))}
+          </div>
+        )}
+
         {/* Thread pills on bubble */}
         {threads.length > 0 && (
           <div className={`flex flex-wrap gap-1 mt-1 ${isMe ? "justify-end" : "justify-start"}`}>

@@ -1,12 +1,15 @@
 "use client";
 
+import { useState } from "react";
 import { AnimatePresence } from "framer-motion";
 import { useIdentity } from "./hooks/useIdentity";
 import { useChat } from "./hooks/useChat";
 import { useThreadNav } from "./hooks/useThreads";
 import { useTextSelection } from "./hooks/useTextSelection";
 import { useDebugLog } from "./hooks/useDebugLog";
-import type { BranchThread, GhostBranch } from "./lib/types";
+import { useReferences } from "./hooks/useReferences";
+import type { Reference } from "./hooks/useReferences";
+import type { BranchThread, GhostBranch, MessageAttachment } from "./lib/types";
 import { ChatShell } from "./components/ChatShell";
 import { FloatingToolbar } from "./components/FloatingToolbar";
 import { Composer } from "./components/Composer";
@@ -20,6 +23,8 @@ export default function V15Page() {
   const chat = useChat(userId);
   const threadNav = useThreadNav(chat.threads);
   const selection = useTextSelection(chat.chatMessages, chat.threads);
+  const refs = useReferences(chat.inputValue, chat.chatMessages, threadNav.currentFocusedThreadId);
+  const [pendingAttachments, setPendingAttachments] = useState<MessageAttachment[]>([]);
 
   // Show identity picker if not yet selected
   if (!loaded) return null;
@@ -38,16 +43,35 @@ export default function V15Page() {
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
+    const attachments = pendingAttachments.length > 0 ? [...pendingAttachments] : undefined;
     if (threadNav.currentFocusedThreadId) {
       chat.postThreadMessage(threadNav.currentFocusedThreadId, chat.inputValue);
       chat.setInputValue("");
     } else {
-      chat.postMessage(chat.inputValue).then((allMessages) => {
+      chat.postMessage(chat.inputValue, attachments).then((allMessages) => {
         if (allMessages) {
           chat.fetchGhosts(allMessages);
         }
       });
     }
+    setPendingAttachments([]);
+    refs.clearReferences();
+  };
+
+  const handleAttachReference = (ref: Reference) => {
+    // Don't attach duplicates
+    if (pendingAttachments.some((a) => a.id === ref.id)) return;
+    const attachment: MessageAttachment = {
+      id: ref.id,
+      label: ref.label,
+      title: ref.title,
+      url: ref.url,
+      argument: ref.argument,
+      type: ref.type,
+    };
+    setPendingAttachments((prev) => [...prev, attachment]);
+    refs.dismiss();
+    chat.inputRef.current?.focus();
   };
 
   const handleBranchAction = (
@@ -180,6 +204,13 @@ export default function V15Page() {
         onDismissReply={() => chat.setReplyTo(null)}
         disabled={false}
         placeholder={composerPlaceholder}
+        referenceResult={refs.result}
+        onAttachReference={handleAttachReference}
+        onDismissReferences={refs.dismiss}
+        pendingAttachments={pendingAttachments}
+        onRemoveAttachment={(id) => setPendingAttachments((prev) => prev.filter((a) => a.id !== id))}
+        aiEnabled={refs.enabled}
+        onToggleAi={refs.toggle}
       />
     </div>
   );

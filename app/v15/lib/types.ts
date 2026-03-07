@@ -1,3 +1,12 @@
+export interface MessageAttachment {
+  id: string;
+  label: string;
+  title: string;
+  url: string;
+  argument: string;
+  type: "academic" | "book" | "essay" | "concept";
+}
+
 export interface ChatMessage {
   id: string;
   role: "user" | "assistant";
@@ -6,6 +15,7 @@ export interface ChatMessage {
   timestamp: string;
   replyToId?: string;
   threadId?: string | null;
+  attachments?: MessageAttachment[];
 }
 
 export interface GhostBranch {
