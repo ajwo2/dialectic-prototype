@@ -62,13 +62,12 @@ export async function POST(req: NextRequest) {
 
     const userPrompt = `Recent conversation:\n${contextBlock}\n\nThe user is currently drafting this message:\n"${draft.trim()}"\n\nSuggest 1-3 real, citable references that are relevant to the point they're making.`;
 
-    // Retry up to 2 times on overloaded errors, fallback to Sonnet if Haiku stays down
-    const models = ["claude-haiku-4-5-20251001", "claude-haiku-4-5-20251001", "claude-sonnet-4-5-20241022"];
+    // Retry up to 4 times with increasing backoff on overloaded errors
     let response;
-    for (let attempt = 0; attempt < models.length; attempt++) {
+    for (let attempt = 0; attempt < 5; attempt++) {
       try {
         response = await client.messages.create({
-          model: models[attempt],
+          model: "claude-haiku-4-5-20251001",
           max_tokens: 512,
           system: SYSTEM_PROMPT,
           messages: [{ role: "user", content: userPrompt }],
@@ -76,8 +75,8 @@ export async function POST(req: NextRequest) {
         break;
       } catch (err: unknown) {
         const isOverloaded = err instanceof Error && (err.message.includes("overloaded") || err.message.includes("529"));
-        if (isOverloaded && attempt < models.length - 1) {
-          await new Promise((r) => setTimeout(r, 1000 * (attempt + 1)));
+        if (isOverloaded && attempt < 4) {
+          await new Promise((r) => setTimeout(r, 1500 * (attempt + 1)));
           continue;
         }
         throw err;
