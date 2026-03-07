@@ -49,6 +49,7 @@ export function Composer({
 
       <ReferenceTray
         result={referenceResult}
+        loading={refsLoading}
         onAttach={onAttachReference}
         onDismiss={onDismissReferences}
       />

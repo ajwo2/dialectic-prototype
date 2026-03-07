@@ -423,6 +423,31 @@ export function useChat(userId: UserId | null) {
     }
   }, [inputValue, sendTypingPing]);
 
+  const deleteMessage = useCallback(
+    async (messageId: string) => {
+      // Optimistic removal
+      setChatMessages((prev) => prev.filter((m) => m.id !== messageId));
+      setThreads((prev) =>
+        prev.map((t) => ({
+          ...t,
+          messages: t.messages.filter((m) => m.id !== messageId),
+        })),
+      );
+
+      try {
+        await fetch("/api/messages", {
+          method: "DELETE",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ id: messageId }),
+        });
+        stateRef.current.messageCount--; // prevent poll from re-adding
+      } catch {
+        // Will resync on next poll
+      }
+    },
+    [],
+  );
+
   const activeGhostCount = ghosts.length;
 
   return {
@@ -452,5 +477,6 @@ export function useChat(userId: UserId | null) {
     activeGhostCount,
     typingUsers,
     fetchState,
+    deleteMessage,
   };
 }

@@ -167,6 +167,7 @@ export default function V15Page() {
         onSetShowThreadNav={threadNav.setShowThreadNav}
         onSetThreadNavFilter={threadNav.setThreadNavFilter}
         onSelectThreadFromNav={handleSelectThreadFromNav}
+        onDeleteMessage={chat.deleteMessage}
         onToggleThreadClosed={chat.toggleThreadClosed}
         onCloseToolbar={selection.closeToolbar}
       />

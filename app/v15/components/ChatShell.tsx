@@ -37,6 +37,7 @@ export function ChatShell({
   onSetShowThreadNav,
   onSetThreadNavFilter,
   onSelectThreadFromNav,
+  onDeleteMessage,
   onToggleThreadClosed,
   onCloseToolbar,
 }: {
@@ -65,6 +66,7 @@ export function ChatShell({
   onSetShowThreadNav: (show: boolean) => void;
   onSetThreadNavFilter: (f: BranchThread["action"] | "all") => void;
   onSelectThreadFromNav: (threadId: string) => void;
+  onDeleteMessage?: (messageId: string) => void;
   onToggleThreadClosed?: (threadId: string, closed: boolean) => void;
   onCloseToolbar: () => void;
 }) {
@@ -233,6 +235,7 @@ export function ChatShell({
                       allMessages={currentFocusedThread.messages}
                       onSwipeReply={onSwipeReply}
                       onFocusThread={onFocusThread}
+                      onDelete={onDeleteMessage}
                       displayNameFor={displayNameFor}
                     />
                     <AnimatePresence>
@@ -298,6 +301,7 @@ export function ChatShell({
                       allMessages={chatMessages}
                       onSwipeReply={onSwipeReply}
                       onFocusThread={onFocusThread}
+                      onDelete={onDeleteMessage}
                       displayNameFor={displayNameFor}
                     />
                     <AnimatePresence>

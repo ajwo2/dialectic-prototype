@@ -23,3 +23,20 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Failed to create message" }, { status: 500 });
   }
 }
+
+export async function DELETE(req: NextRequest) {
+  try {
+    const { id } = await req.json();
+
+    if (!id) {
+      return NextResponse.json({ error: "id required" }, { status: 400 });
+    }
+
+    await sql`DELETE FROM messages WHERE id = ${id}`;
+
+    return NextResponse.json({ success: true });
+  } catch (error) {
+    console.error("Message delete error:", error);
+    return NextResponse.json({ error: "Failed to delete message" }, { status: 500 });
+  }
+}

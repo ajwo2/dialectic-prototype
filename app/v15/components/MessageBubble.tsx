@@ -17,6 +17,7 @@ export function MessageBubble({
   allMessages,
   onSwipeReply,
   onFocusThread,
+  onDelete,
   displayNameFor,
 }: {
   message: ChatMessage;
@@ -27,9 +28,11 @@ export function MessageBubble({
   allMessages: ChatMessage[];
   onSwipeReply: (message: ChatMessage) => void;
   onFocusThread: (threadId: string) => void;
+  onDelete?: (messageId: string) => void;
   displayNameFor?: (authorId: string) => string;
 }) {
   const [swipeX, setSwipeX] = useState(0);
+  const [showActions, setShowActions] = useState(false);
   const touchStartX = useRef(0);
   const touchStartY = useRef(0);
   const isSwiping = useRef(false);
@@ -101,11 +104,12 @@ export function MessageBubble({
       </AnimatePresence>
 
       <div
-        className="relative max-w-[80%]"
+        className="relative max-w-[80%] group"
         style={{ transform: `translateX(${swipeX}px)`, transition: swipeX === 0 ? "transform 0.2s ease-out" : "none" }}
         onTouchStart={handleTouchStart}
         onTouchMove={handleTouchMove}
         onTouchEnd={handleTouchEnd}
+        onDoubleClick={() => setShowActions((p) => !p)}
       >
         <div
           className={`relative rounded-2xl px-3 py-2 ${
@@ -197,6 +201,26 @@ export function MessageBubble({
             <span className="text-[10px] text-zinc-500">Delivered</span>
             <span className="text-[10px] text-zinc-600">{formatTime(message.timestamp)}</span>
           </div>
+        )}
+
+        {/* Delete button — shows on double-click/tap or desktop hover */}
+        {onDelete && (
+          <AnimatePresence>
+            {showActions && (
+              <motion.button
+                initial={{ opacity: 0, scale: 0.8 }}
+                animate={{ opacity: 1, scale: 1 }}
+                exit={{ opacity: 0, scale: 0.8 }}
+                transition={{ duration: 0.1 }}
+                onClick={() => { onDelete(message.id); setShowActions(false); }}
+                className={`absolute top-1 ${isMe ? "-left-8" : "-right-8"} w-6 h-6 rounded-full bg-red-500/20 border border-red-500/30 flex items-center justify-center text-red-400 hover:bg-red-500/30 transition-colors`}
+              >
+                <svg className="w-3 h-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M3 6h18M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
+                </svg>
+              </motion.button>
+            )}
+          </AnimatePresence>
         )}
       </div>
     </motion.div>

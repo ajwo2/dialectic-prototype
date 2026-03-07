@@ -15,7 +15,7 @@ Rules:
   - "label": short author + year citation
   - "title": full title of the work
   - "url": a real URL — use Google Scholar, DOI links, or publisher URLs. Format DOIs as https://doi.org/... If you don't know the exact DOI, use a Google Scholar search URL like https://scholar.google.com/scholar?q=TITLE+AUTHOR
-  - "argument": 1-2 sentences explaining specifically how this source supports, challenges, or adds nuance to the user's point. Write this in second person ("Your point about X is backed by..." or "This challenges your claim because...")
+  - "argument": ONE pithy sentence (max 25 words) summarizing the key finding and how it relates to the user's point. Write in third person, stating what the research found. Example: "meta-analysis shows few societies are purely individualistic or collectivist; tendencies change drastically by region"
   - "type": academic|book|essay|concept
 
 Respond with valid JSON only. No markdown, no code fences. Format:
@@ -27,7 +27,7 @@ Respond with valid JSON only. No markdown, no code fences. Format:
       "label": "Markus & Kitayama, 1991",
       "title": "Culture and the Self",
       "url": "https://doi.org/10.1037/0033-295X.98.2.224",
-      "argument": "Your point about cultural flexibility is backed by their finding that self-construal shifts between independent and interdependent modes depending on context.",
+      "argument": "self-construal shifts between independent and interdependent modes depending on social context, not fixed by culture",
       "type": "academic"
     }
   ]
