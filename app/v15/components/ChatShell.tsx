@@ -69,14 +69,35 @@ export function ChatShell({
   onCloseToolbar: () => void;
 }) {
   const scrollRef = useRef<HTMLDivElement>(null);
+  const hasScrolledInitially = useRef(false);
+  const prevMessageCount = useRef(0);
 
-  // Auto-scroll
+  // Scroll to bottom: instant on first load, smooth on new messages
   useEffect(() => {
     const el = scrollRef.current;
-    if (el) {
+    if (!el || chatMessages.length === 0) return;
+
+    if (!hasScrolledInitially.current) {
+      // First time messages arrive — force to bottom at multiple timings
+      // to catch layout after Framer Motion animations resolve
+      const snap = () => { el.scrollTop = el.scrollHeight; };
+      snap();
+      requestAnimationFrame(snap);
+      // After animation frames settle
+      setTimeout(snap, 50);
+      setTimeout(snap, 150);
+      setTimeout(snap, 300);
+      hasScrolledInitially.current = true;
+      prevMessageCount.current = chatMessages.length;
+      return;
+    }
+
+    // Only smooth-scroll when new messages are added
+    if (chatMessages.length > prevMessageCount.current) {
       el.scrollTo({ top: el.scrollHeight, behavior: "smooth" });
     }
-  }, [chatMessages, loadingContext, threads]);
+    prevMessageCount.current = chatMessages.length;
+  }, [chatMessages]);
 
   const currentDisplayName = displayNameFor(currentUserId);
   const otherUserId = currentUserId === "aj" ? "suz" : "aj";
