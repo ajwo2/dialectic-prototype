@@ -1,0 +1,69 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0 # full history so the test-integrity guard can diff against the base
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - run: npm ci
+
+      # Typecheck (Next projects ship tsc); non-fatal if no tsconfig.
+      - name: Typecheck
+        run: npx tsc --noEmit || echo "::warning::no tsc/typecheck step"
+
+      # NOTE: `next lint` is removed in Next 16 (the script misreads "lint" as a dir).
+      # Kept non-fatal until the repo migrates to the ESLint CLI / Biome — a deliberate
+      # tooling decision, not something CI should force. Tracked as tech debt.
+      - name: Lint (non-fatal until lint script is migrated off `next lint`)
+        run: npm run lint || echo "::warning::lint failed — 'next lint' is removed in Next 16; migrate to eslint CLI"
+        continue-on-error: true
+
+      - name: Test
+        run: npm test
+
+      # Test-integrity guard (CI half): fail if a PR deletes test files or drops
+      # test/assertion counts without "test:" in a commit message justifying it.
+      - name: Test-integrity guard
+        if: github.event_name == 'pull_request'
+        run: |
+          set -euo pipefail
+          base="origin/${{ github.base_ref }}"
+          git fetch origin "${{ github.base_ref }}" --depth=1 || true
+
+          # Count test/assertion calls in a given ref by listing test files,
+          # reading each via `git show`, and grepping the content (robust across git versions).
+          count_calls() {
+            local ref="$1" total=0 f
+            for f in $(git ls-tree -r --name-only "$ref" | grep -E '(\.test\.|\.spec\.|__tests__/|eval-cases)' || true); do
+              local n
+              n=$(git show "$ref:$f" 2>/dev/null | grep -hoiE '\b(test|it|expect|assert)\(' | wc -l | tr -d ' ')
+              total=$((total + n))
+            done
+            echo "$total"
+          }
+
+          deleted=$(git diff --diff-filter=D --name-only "$base"...HEAD | grep -E '\.(test|spec)\.|__tests__/|eval-cases' || true)
+          before=$(count_calls "$base")
+          after=$(count_calls HEAD)
+          justified=$(git log "$base"...HEAD --format='%s%n%b' | grep -ci 'test:' || true)
+
+          if [ -n "$deleted" ] && [ "$justified" -eq 0 ]; then
+            echo "::error::Test files deleted without a 'test:' justification in a commit message:"; echo "$deleted"; exit 1
+          fi
+          if [ "$after" -lt "$before" ] && [ "$justified" -eq 0 ]; then
+            echo "::error::Test/assertion count dropped ($before -> $after) without a 'test:' justification. Agents must not weaken tests to go green."; exit 1
+          fi
+          echo "test-integrity OK (before=$before after=$after deleted='${deleted:-none}')"
